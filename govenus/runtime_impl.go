@@ -3,7 +3,7 @@ package govenus
 import (
 	"sync"
 
-	utils "github.com/albertoaer/venus/govenus/utils"
+	"github.com/albertoaer/venus/govenus/utils"
 )
 
 type funcPromise[T any] struct {

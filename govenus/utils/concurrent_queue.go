@@ -1,4 +1,4 @@
-package govenus
+package utils
 
 import "sync"
 
