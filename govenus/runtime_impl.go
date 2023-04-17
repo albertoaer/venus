@@ -7,18 +7,18 @@ import (
 )
 
 type funcPromise[T any] struct {
-	task    Task[T]
-	onDone  *funcPromise[T]
-	done    bool
-	runtime Runtime[T]
+	task           Task[T]
+	onDone         *funcPromise[T]
+	done           bool
+	contextBuilder ContextBuilder[T]
 }
 
-func createFuncPromise[T any](task Task[T], runtime Runtime[T]) *funcPromise[T] {
+func createFuncPromise[T any](task Task[T], contextBuilder ContextBuilder[T]) *funcPromise[T] {
 	return &funcPromise[T]{
-		task:    task,
-		onDone:  nil,
-		done:    false,
-		runtime: runtime,
+		task:           task,
+		onDone:         nil,
+		done:           false,
+		contextBuilder: contextBuilder,
 	}
 }
 
@@ -27,13 +27,14 @@ func (p *funcPromise[T]) IsDone() bool {
 }
 
 func (p *funcPromise[T]) OnDone(task Task[T]) Promise[T] {
-	promise := createFuncPromise(task, p.runtime)
+	promise := createFuncPromise(task, p.contextBuilder)
 	p.onDone = promise
 	return promise
 }
 
 func (p *funcPromise[T]) runOnce() {
-	p.task.Perform(NewMockContext(p.runtime))
+	// TODO: avoid use the context without building it
+	p.task.Perform(p.contextBuilder.Build())
 	p.done = p.task.Done()
 }
 
@@ -63,8 +64,16 @@ func (mqr *queueRuntime[T]) SetState(state T) {
 	mqr.state = state
 }
 
+func (mqr *queueRuntime[T]) InitializeContextBuilder() ContextBuilder[T] {
+	return NewContextBuilder[T]().SetRuntime(mqr)
+}
+
 func (mqr *queueRuntime[T]) Launch(task Task[T]) Promise[T] {
-	promise := createFuncPromise[T](task, mqr)
+	return mqr.LaunchWith(task, mqr.InitializeContextBuilder())
+}
+
+func (mqr *queueRuntime[T]) LaunchWith(task Task[T], contextBuilder ContextBuilder[T]) Promise[T] {
+	promise := createFuncPromise(task, contextBuilder)
 	mqr.queue.Enqueue(promise)
 	return promise
 }

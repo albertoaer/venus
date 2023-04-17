@@ -13,11 +13,9 @@ type Promise[T any] interface {
 type Runtime[T any] interface {
 	State() T
 	SetState(T)
+	InitializeContextBuilder() ContextBuilder[T]
 	Launch(Task[T]) Promise[T]
+	LaunchWith(Task[T], ContextBuilder[T]) Promise[T]
 	Start()
 	Stop()
-}
-
-type Context[T any] interface {
-	Runtime() Runtime[T]
 }
