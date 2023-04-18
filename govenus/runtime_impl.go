@@ -34,8 +34,7 @@ func (p *funcPromise[T]) OnDone(task Task[T]) Promise[T] {
 
 func (p *funcPromise[T]) runOnce() {
 	// TODO: avoid use the context without building it
-	p.task.Perform(p.contextBuilder.Build())
-	p.done = p.task.Done()
+	p.done = p.task(p.contextBuilder.Build())
 }
 
 type queueRuntime[T any] struct {

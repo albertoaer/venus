@@ -1,9 +1,6 @@
 package govenus
 
-type Task[T any] interface {
-	Perform(Context[T])
-	Done() bool
-}
+type Task[T any] func(Context[T]) bool
 
 type Promise[T any] interface {
 	IsDone() bool
