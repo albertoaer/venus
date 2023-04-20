@@ -25,10 +25,14 @@ func (rm *RuntimeMailbox[T]) OnDefault(task Task[T]) {
 }
 
 func (rm *RuntimeMailbox[T]) Notify(message protocol.Message) {
-	// TODO: launch with the message for both cases
+	if message.Type != protocol.MESSAGE_TYPE_PERFORM {
+		return
+	}
+	context := rm.runtime.InitializeContextBuilder()
+	context.SetMessage(message)
 	if task, exists := rm.responses[message.Verb]; exists {
-		rm.runtime.Launch(task)
+		rm.runtime.LaunchWith(task, context)
 	} else if rm.defaultResponse != nil {
-		rm.runtime.Launch(rm.defaultResponse)
+		rm.runtime.LaunchWith(rm.defaultResponse, context)
 	}
 }

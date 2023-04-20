@@ -33,8 +33,9 @@ func (p *funcPromise[T]) OnDone(task Task[T]) Promise[T] {
 }
 
 func (p *funcPromise[T]) runOnce() {
-	// TODO: avoid use the context without building it
-	p.done = p.task(p.contextBuilder.Build())
+	if context, err := p.contextBuilder.Build(); err != nil {
+		p.done = p.task(context)
+	}
 }
 
 type queueRuntime[T any] struct {
