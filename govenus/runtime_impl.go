@@ -7,52 +7,64 @@ import (
 )
 
 type funcPromise[T any] struct {
-	task           Task[T]
-	onDone         *funcPromise[T]
-	done           bool
-	contextBuilder ContextBuilder[T]
+	task     Task[T]
+	done     bool
+	context  Context[T]
+	prepared bool
+	mutex    sync.RWMutex
 }
 
-func createFuncPromise[T any](task Task[T], contextBuilder ContextBuilder[T]) *funcPromise[T] {
+func createFuncPromise[T any](task Task[T], context Context[T], prepared bool) *funcPromise[T] {
 	return &funcPromise[T]{
-		task:           task,
-		onDone:         nil,
-		done:           false,
-		contextBuilder: contextBuilder,
+		task:     task,
+		done:     false,
+		context:  context,
+		prepared: prepared,
 	}
 }
 
 func (p *funcPromise[T]) IsDone() bool {
+	p.mutex.RLock()
+	defer p.mutex.RUnlock()
 	return p.done
 }
 
 func (p *funcPromise[T]) OnDone(task Task[T]) Promise[T] {
-	promise := createFuncPromise(task, p.contextBuilder)
-	p.onDone = promise
-	return promise
+	return p.OnDoneWith(task, p.context.Runtime().InitializeContextBuilder())
+}
+
+func (p *funcPromise[T]) OnDoneWith(task Task[T], contextBuilder ContextBuilder[T]) Promise[T] {
+	contextBuilder.AddAvailabilityCondition(
+		func() bool {
+			return p.IsDone()
+		},
+	)
+	return p.context.Runtime().LaunchWith(task, contextBuilder)
 }
 
 func (p *funcPromise[T]) runOnce() {
-	if context, err := p.contextBuilder.Build(); err != nil {
-		p.done = p.task(context)
+	p.mutex.Lock()
+	defer p.mutex.Unlock()
+	if !p.done {
+		p.done = p.task(p.context)
 	}
 }
 
 type queueRuntime[T any] struct {
-	queue     utils.ConcurrentQueue[*funcPromise[T]]
-	state     T
-	on        bool
-	onLocker  sync.Mutex
-	startLock sync.Mutex
+	queue      utils.ConcurrentQueue[*funcPromise[T]]
+	state      T
+	on         bool
+	onMutex    sync.Mutex
+	startMutex sync.Mutex
 }
 
 func NewDefaultRuntime[T any](initial T) Runtime[T] {
 	return &queueRuntime[T]{
-		queue:     utils.NewConcurrentQueue[*funcPromise[T]](),
-		state:     initial,
-		on:        true,
-		onLocker:  sync.Mutex{},
-		startLock: sync.Mutex{},
+		queue:      utils.NewConcurrentQueue[*funcPromise[T]](),
+		state:      initial,
+		on:         true,
+		onMutex:    sync.Mutex{},
+		startMutex: sync.Mutex{},
 	}
 }
 
@@ -73,23 +85,28 @@ func (mqr *queueRuntime[T]) Launch(task Task[T]) Promise[T] {
 }
 
 func (mqr *queueRuntime[T]) LaunchWith(task Task[T], contextBuilder ContextBuilder[T]) Promise[T] {
-	promise := createFuncPromise(task, contextBuilder)
+	contextBuilder.SetRuntime(mqr) // Prevent unexpected behaviour
+	context, err := contextBuilder.Build()
+	if err != nil {
+		panic(err)
+	}
+	promise := createFuncPromise(task, context, false)
 	mqr.queue.Enqueue(promise)
 	return promise
 }
 
 func (mqr *queueRuntime[T]) Start() {
-	mqr.startLock.Lock()
-	mqr.onLocker.Lock()
+	mqr.startMutex.Lock()
+	mqr.onMutex.Lock()
 	mqr.on = true
-	mqr.onLocker.Unlock()
+	mqr.onMutex.Unlock()
 	for mqr.on {
 		if !mqr.queue.Empty() {
 			promise := mqr.queue.Dequeue()
-			promise.runOnce()
-			if promise.IsDone() { // Only react to it finalization if it actually ends
-				if promise.onDone != nil {
-					mqr.queue.Enqueue(promise.onDone)
+			if promise.context.IsAvailable() {
+				promise.runOnce()
+				if !promise.IsDone() {
+					mqr.queue.Enqueue(promise)
 				}
 			} else {
 				mqr.queue.Enqueue(promise)
@@ -99,9 +116,9 @@ func (mqr *queueRuntime[T]) Start() {
 }
 
 func (mqr *queueRuntime[T]) Stop() {
-	mqr.onLocker.Lock()
+	mqr.onMutex.Lock()
 	mqr.on = false
-	mqr.onLocker.Unlock()
-	mqr.startLock.TryLock()
-	mqr.startLock.Unlock()
+	mqr.onMutex.Unlock()
+	mqr.startMutex.TryLock()
+	mqr.startMutex.Unlock()
 }

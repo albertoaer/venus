@@ -1,6 +1,8 @@
 package govenus
 
-import "github.com/albertoaer/venus/govenus/protocol"
+import (
+	"github.com/albertoaer/venus/govenus/protocol"
+)
 
 type RuntimeMailbox[T any] struct {
 	runtime         Runtime[T]
