@@ -2,42 +2,44 @@ package utils
 
 import "container/heap"
 
-type PriorityItem interface {
-	Priority() int64
+type priorityQueueArr[T any] struct {
+	arr        []T
+	comparator func(T, T) bool
 }
 
-type priorityQueueArr[T PriorityItem] []T
-
 func (pqa priorityQueueArr[T]) Len() int {
-	return len(pqa)
+	return len(pqa.arr)
 }
 
 func (pqa priorityQueueArr[T]) Less(i, j int) bool {
-	return pqa[i].Priority() < pqa[i].Priority()
+	return pqa.comparator(pqa.arr[i], pqa.arr[i])
 }
 
 func (pqa priorityQueueArr[T]) Swap(i, j int) {
-	pqa[i], pqa[j] = pqa[j], pqa[i]
+	pqa.arr[i], pqa.arr[j] = pqa.arr[j], pqa.arr[i]
 }
 
 func (pqa *priorityQueueArr[T]) Push(item any) {
-	*pqa = append(*pqa, item.(T))
+	pqa.arr = append(pqa.arr, item.(T))
 }
 
 func (pqa *priorityQueueArr[T]) Pop() any {
-	old := *pqa
+	old := pqa.arr
 	item := old[len(old)-1]
-	*pqa = old[0 : len(old)-1]
+	pqa.arr = old[0 : len(old)-1]
 	return item
 }
 
-type PriorityQueue[T PriorityItem] struct {
+type PriorityQueue[T any] struct {
 	nodes priorityQueueArr[T]
 }
 
-func NewPriorityQueue[T PriorityItem]() *PriorityQueue[T] {
+func NewPriorityQueue[T any](comparator func(T, T) bool) *PriorityQueue[T] {
 	return &PriorityQueue[T]{
-		nodes: make([]T, 0),
+		nodes: priorityQueueArr[T]{
+			arr:        make([]T, 0),
+			comparator: comparator,
+		},
 	}
 }
 
@@ -50,9 +52,9 @@ func (pq *PriorityQueue[T]) Pop() T {
 }
 
 func (pq *PriorityQueue[T]) Top() T {
-	return pq.nodes[0]
+	return pq.nodes.arr[0]
 }
 
 func (pq *PriorityQueue[T]) Clear() {
-	pq.nodes = make([]T, 0)
+	pq.nodes.arr = make([]T, 0)
 }
