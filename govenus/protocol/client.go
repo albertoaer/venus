@@ -1,6 +1,7 @@
 package protocol
 
 import (
+	"fmt"
 	"math/rand"
 	"net"
 
@@ -8,10 +9,6 @@ import (
 
 	"github.com/albertoaer/venus/govenus/utils"
 )
-
-func (msg Message) Priority() int64 {
-	return msg.Timestamp
-}
 
 type activeCommunication struct {
 	unordered     *utils.PriorityQueue[Message]
@@ -22,7 +19,11 @@ type activeCommunication struct {
 
 func newActiveCommunication(provider PacketProvider, address net.Addr) *activeCommunication {
 	return &activeCommunication{
-		unordered:     utils.NewPriorityQueue[Message](),
+		unordered: utils.NewPriorityQueue(
+			func(m1, m2 Message) bool {
+				return m1.Timestamp() < m2.Timestamp()
+			},
+		),
 		provider:      provider,
 		address:       address,
 		lastTimestamp: -1,
@@ -62,38 +63,31 @@ func (client *baseClient) SetMessageCallback(callback func(Message)) {
 	client.messageCallback = callback
 }
 
-func (client *baseClient) processMessage(msg Message, comm *activeCommunication) {
-	switch msg.Type {
-	case MESSAGE_TYPE_BEGIN:
-	case MESSAGE_TYPE_PERFORM:
-	case MESSAGE_TYPE_INFO:
-	}
-}
-
 func (client *baseClient) ProcessPacket(packet Packet) {
 	msg, err := client.serializer.Deserialize(packet.Data)
 	if err != nil { // TODO: handle properly
+		fmt.Printf("Error: %s\n", err.Error())
 		return
 	}
-	if msg.ReceiverClientId != client.id {
+	if msg.Receiver() != nil && *msg.Receiver() != client.id {
 		return
 	}
-	if comm, exists := client.activeCommunications[msg.ReceiverClientId]; exists {
-		client.processMessage(msg, comm)
+	if _, exists := client.activeCommunications[msg.Sender()]; exists {
+		client.messageCallback(msg)
 	} else {
-		comm = newActiveCommunication(packet.Provider, packet.Address)
-		client.activeCommunications[msg.ReceiverClientId] = comm
-		client.processMessage(msg, comm)
+		client.activeCommunications[msg.Sender()] = newActiveCommunication(packet.Provider, packet.Address)
+		client.messageCallback(msg)
 	}
 }
 
 func (client *baseClient) ProcessMessage(msg Message) {
-	if msg.SenderClientId != client.id {
+	if msg.Sender() != client.id {
 		return
 	}
-	if comm, exists := client.activeCommunications[msg.SenderClientId]; exists && client.packetCallback != nil {
+	if comm, exists := client.activeCommunications[msg.Sender()]; exists && client.packetCallback != nil {
 		data, err := client.serializer.Serialize(msg)
 		if err != nil { // TODO: handle properly
+			fmt.Printf("Error: %s\n", err.Error())
 			return
 		}
 		client.packetCallback(Packet{

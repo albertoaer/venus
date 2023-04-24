@@ -14,23 +14,22 @@ type PacketProvider interface {
 	Send(Packet) error
 }
 
-type MessageResolutionMethod int8
-
 type MessageType int8
 
 type ClientId string
 
 type Verb string
 
-type Message struct {
-	SenderClientId    ClientId                `json:"sender"`
-	ReceiverClientId  ClientId                `json:"receiver"`
-	ResolutionMethod  MessageResolutionMethod `json:"resolution"`
-	Timestamp         int64                   `json:"timestamp"`
-	PreviousTimestamp int64                   `json:"previousTimestamp"`
-	Type              MessageType             `json:"type"`
-	Verb              Verb                    `json:"verb"`
-	Payload           []byte                  `json:"payload"`
+type Message interface {
+	Sender() ClientId
+	Receiver() *ClientId // Optional
+	Timestamp() int64
+	PreviousTimestamp() *int64 // Optional
+	Verb() Verb
+	Type() MessageType
+	Args() []string
+	Options() map[string]string
+	Payload() []byte
 }
 
 type MessageSerializer interface {
