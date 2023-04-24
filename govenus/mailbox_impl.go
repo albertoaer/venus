@@ -1,40 +1,44 @@
 package govenus
 
-import (
-	"github.com/albertoaer/venus/govenus/protocol"
-)
+import "github.com/albertoaer/venus/govenus/protocol"
 
-type RuntimeMailbox[T any] struct {
-	runtime         Runtime[T]
-	responses       map[protocol.Verb]Task[T]
-	defaultResponse Task[T]
+type MailContext = EventContext[protocol.Message]
+
+type MailTask = EventTask[protocol.Message]
+
+type RuntimeMailbox struct {
+	runtime         Runtime
+	responses       map[protocol.Verb]MailTask
+	defaultResponse MailTask
 }
 
-func Mailboxed[T any](runtime Runtime[T]) *RuntimeMailbox[T] {
-	return &RuntimeMailbox[T]{
+func Mailboxed(runtime Runtime) *RuntimeMailbox {
+	return &RuntimeMailbox{
 		runtime:         runtime,
-		responses:       make(map[protocol.Verb]Task[T]),
+		responses:       make(map[protocol.Verb]MailTask),
 		defaultResponse: nil,
 	}
 }
 
-func (rm *RuntimeMailbox[T]) On(verb protocol.Verb, task Task[T]) {
+func (rm *RuntimeMailbox) On(verb protocol.Verb, task MailTask) {
 	rm.responses[verb] = task
 }
 
-func (rm *RuntimeMailbox[T]) OnDefault(task Task[T]) {
+func (rm *RuntimeMailbox) OnDefault(task MailTask) {
 	rm.defaultResponse = task
 }
 
-func (rm *RuntimeMailbox[T]) Notify(message protocol.Message) {
-	if message.Type != protocol.MESSAGE_TYPE_PERFORM {
+func (rm *RuntimeMailbox) Notify(message protocol.Message) {
+	if message.Type() != protocol.MESSAGE_TYPE_PERFORM {
 		return
 	}
-	context := rm.runtime.InitializeContextBuilder()
-	context.SetMessage(message)
-	if task, exists := rm.responses[message.Verb]; exists {
-		rm.runtime.LaunchWith(task, context)
+	context := rm.runtime.NewContext()
+	taskBuilder := NewEventTaskBuilder[protocol.Message]()
+	taskBuilder.SetEvent(message)
+	if task, exists := rm.responses[message.Verb()]; exists {
+		taskBuilder.SetTask(EventTask[protocol.Message](task))
 	} else if rm.defaultResponse != nil {
-		rm.runtime.LaunchWith(rm.defaultResponse, context)
+		taskBuilder.SetTask(EventTask[protocol.Message](rm.defaultResponse))
 	}
+	rm.runtime.LaunchWith(taskBuilder.Build(), context)
 }

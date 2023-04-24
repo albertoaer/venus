@@ -6,16 +6,16 @@ import (
 	"github.com/albertoaer/venus/govenus/utils"
 )
 
-type funcPromise[T any] struct {
-	task     Task[T]
+type funcPromise struct {
+	task     Task
 	done     bool
-	context  Context[T]
+	context  RuntimeContext
 	prepared bool
 	mutex    sync.RWMutex
 }
 
-func createFuncPromise[T any](task Task[T], context Context[T], prepared bool) *funcPromise[T] {
-	return &funcPromise[T]{
+func createFuncPromise(task Task, context RuntimeContext, prepared bool) *funcPromise {
+	return &funcPromise{
 		task:     task,
 		done:     false,
 		context:  context,
@@ -23,17 +23,17 @@ func createFuncPromise[T any](task Task[T], context Context[T], prepared bool) *
 	}
 }
 
-func (p *funcPromise[T]) IsDone() bool {
+func (p *funcPromise) IsDone() bool {
 	p.mutex.RLock()
 	defer p.mutex.RUnlock()
 	return p.done
 }
 
-func (p *funcPromise[T]) OnDone(task Task[T]) Promise[T] {
-	return p.OnDoneWith(task, p.context.Runtime().InitializeContextBuilder())
+func (p *funcPromise) OnDone(task Task) Promise {
+	return p.OnDoneWith(task, p.context.Runtime().NewContext())
 }
 
-func (p *funcPromise[T]) OnDoneWith(task Task[T], contextBuilder ContextBuilder[T]) Promise[T] {
+func (p *funcPromise) OnDoneWith(task Task, contextBuilder RuntimeContextBuilder) Promise {
 	contextBuilder.AddAvailabilityCondition(
 		func() bool {
 			return p.IsDone()
@@ -42,7 +42,7 @@ func (p *funcPromise[T]) OnDoneWith(task Task[T], contextBuilder ContextBuilder[
 	return p.context.Runtime().LaunchWith(task, contextBuilder)
 }
 
-func (p *funcPromise[T]) runOnce() {
+func (p *funcPromise) runOnce() {
 	p.mutex.Lock()
 	defer p.mutex.Unlock()
 	if !p.done {
@@ -50,41 +50,31 @@ func (p *funcPromise[T]) runOnce() {
 	}
 }
 
-type queueRuntime[T any] struct {
-	queue      utils.ConcurrentQueue[*funcPromise[T]]
-	state      T
+type singleRoutineRuntime struct {
+	queue      utils.ConcurrentQueue[*funcPromise]
 	on         bool
 	onMutex    sync.Mutex
 	startMutex sync.Mutex
 }
 
-func NewDefaultRuntime[T any](initial T) Runtime[T] {
-	return &queueRuntime[T]{
-		queue:      utils.NewConcurrentQueue[*funcPromise[T]](),
-		state:      initial,
+func NewSRRuntime() Runtime {
+	return &singleRoutineRuntime{
+		queue:      utils.NewConcurrentQueue[*funcPromise](),
 		on:         true,
 		onMutex:    sync.Mutex{},
 		startMutex: sync.Mutex{},
 	}
 }
 
-func (mqr *queueRuntime[T]) State() T {
-	return mqr.state
+func (mqr *singleRoutineRuntime) NewContext() RuntimeContextBuilder {
+	return NewContextBuilder().SetRuntime(mqr)
 }
 
-func (mqr *queueRuntime[T]) SetState(state T) {
-	mqr.state = state
+func (mqr *singleRoutineRuntime) Launch(task Task) Promise {
+	return mqr.LaunchWith(task, mqr.NewContext())
 }
 
-func (mqr *queueRuntime[T]) InitializeContextBuilder() ContextBuilder[T] {
-	return NewContextBuilder[T]().SetRuntime(mqr)
-}
-
-func (mqr *queueRuntime[T]) Launch(task Task[T]) Promise[T] {
-	return mqr.LaunchWith(task, mqr.InitializeContextBuilder())
-}
-
-func (mqr *queueRuntime[T]) LaunchWith(task Task[T], contextBuilder ContextBuilder[T]) Promise[T] {
+func (mqr *singleRoutineRuntime) LaunchWith(task Task, contextBuilder RuntimeContextBuilder) Promise {
 	contextBuilder.SetRuntime(mqr) // Prevent unexpected behaviour
 	context, err := contextBuilder.Build()
 	if err != nil {
@@ -95,7 +85,7 @@ func (mqr *queueRuntime[T]) LaunchWith(task Task[T], contextBuilder ContextBuild
 	return promise
 }
 
-func (mqr *queueRuntime[T]) Start() {
+func (mqr *singleRoutineRuntime) Start() {
 	mqr.startMutex.Lock()
 	mqr.onMutex.Lock()
 	mqr.on = true
@@ -115,7 +105,7 @@ func (mqr *queueRuntime[T]) Start() {
 	}
 }
 
-func (mqr *queueRuntime[T]) Stop() {
+func (mqr *singleRoutineRuntime) Stop() {
 	mqr.onMutex.Lock()
 	mqr.on = false
 	mqr.onMutex.Unlock()

@@ -1,19 +1,17 @@
 package govenus
 
-type Task[T any] func(Context[T]) bool
+type Task = func(RuntimeContext) bool
 
-type Promise[T any] interface {
+type Promise interface {
 	IsDone() bool
-	OnDone(Task[T]) Promise[T]
-	OnDoneWith(Task[T], ContextBuilder[T]) Promise[T]
+	OnDone(Task) Promise
+	OnDoneWith(Task, RuntimeContextBuilder) Promise
 }
 
-type Runtime[T any] interface {
-	State() T
-	SetState(T)
-	InitializeContextBuilder() ContextBuilder[T]
-	Launch(Task[T]) Promise[T]
-	LaunchWith(Task[T], ContextBuilder[T]) Promise[T]
+type Runtime interface {
+	NewContext() RuntimeContextBuilder
+	Launch(Task) Promise
+	LaunchWith(Task, RuntimeContextBuilder) Promise
 	Start()
 	Stop()
 }
