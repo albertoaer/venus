@@ -2,6 +2,7 @@ package network
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"strings"
 	"sync"
@@ -38,6 +39,7 @@ func (tcp *TcpPackageProvider) Emitter() <-chan protocol.Packet {
 func (tcp *TcpPackageProvider) Start() (err error) {
 	tcp.conn, err = net.ListenTCP("tcp", &net.TCPAddr{Port: tcp.port})
 	if err == nil {
+		fmt.Printf("Starting tcp server at port: %d\n", tcp.port)
 		go func() {
 			for {
 				if conn, err := tcp.conn.AcceptTCP(); err == nil {
@@ -79,21 +81,21 @@ func (tcp *TcpPackageProvider) handleConnection(conn *net.TCPConn) {
 	tcp.connectionsRW.Lock()
 	tcp.connections[conn.RemoteAddr().String()] = conn
 	tcp.connectionsRW.Unlock()
+	// TODO: maybe reduce the number of buffers
+	buffer := make([]byte, NetBufferSize)
 	for {
-		// TODO: maybe reduce the number of buffers
-		buffer := make([]byte, NetBufferSize)
-		for {
-			size, err := conn.Read(buffer)
-			if err != nil {
-				tcp.connectionsRW.Lock()
-				delete(tcp.connections, conn.RemoteAddr().String())
-				tcp.connectionsRW.Unlock()
-			}
-			tcp.emitter <- protocol.Packet{
-				Data:     buffer[:size],
-				Address:  conn.RemoteAddr(),
-				Provider: tcp,
-			}
+		size, err := conn.Read(buffer)
+		if err != nil {
+			tcp.connectionsRW.Lock()
+			delete(tcp.connections, conn.RemoteAddr().String())
+			tcp.connectionsRW.Unlock()
+			break
+		}
+		fmt.Printf("Got package of size %d\n", size)
+		tcp.emitter <- protocol.Packet{
+			Data:     buffer[:size],
+			Address:  conn.RemoteAddr(),
+			Provider: tcp,
 		}
 	}
 }
