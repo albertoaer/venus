@@ -9,9 +9,9 @@ type jsonMessage struct {
 	PreviousTimestamp_ *int64            `json:"previousTimestamp,omitempty"`
 	Type_              MessageType       `json:"type"`
 	Verb_              Verb              `json:"verb"`
-	Args_              []string          `json:"args"`
-	Options_           map[string]string `json:"options"`
-	Payload_           []byte            `json:"payload"`
+	Args_              []string          `json:"args,omitempty"`
+	Options_           map[string]string `json:"options,omitempty"`
+	Payload_           []byte            `json:"payload,omitempty"`
 }
 
 func (jm jsonMessage) Args() []string {
@@ -53,7 +53,11 @@ func (jm jsonMessage) Verb() Verb {
 type jsonSerializer struct{}
 
 func (*jsonSerializer) Deserialize(packet []byte) (Message, error) {
-	message := jsonMessage{}
+	message := jsonMessage{
+		Args_:    make([]string, 0),
+		Options_: make(map[string]string, 0),
+		Payload_: make([]byte, 0),
+	}
 	err := json.Unmarshal(packet, &message)
 	return message, err
 }
