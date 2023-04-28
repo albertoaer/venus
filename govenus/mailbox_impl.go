@@ -34,7 +34,7 @@ func (rm *RuntimeMailbox) OnDefault(task MailTask) {
 }
 
 func (rm *RuntimeMailbox) Notify(message protocol.Message, client ClientService) {
-	if message.Type() != protocol.MESSAGE_TYPE_PERFORM {
+	if message.Type != protocol.MESSAGE_TYPE_PERFORM || message.Receiver == nil || *message.Receiver != client.GetId() {
 		return
 	}
 	context := rm.runtime.NewContext()
@@ -43,7 +43,7 @@ func (rm *RuntimeMailbox) Notify(message protocol.Message, client ClientService)
 		Message: message,
 		Client:  client,
 	})
-	if task, exists := rm.responses[message.Verb()]; exists {
+	if task, exists := rm.responses[message.Verb]; exists {
 		taskBuilder.SetTask(EventTask[MailEvent](task))
 	} else if rm.defaultResponse != nil {
 		taskBuilder.SetTask(EventTask[MailEvent](rm.defaultResponse))

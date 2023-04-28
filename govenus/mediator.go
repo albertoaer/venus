@@ -1,21 +1,23 @@
 package govenus
 
 import (
+	"net"
+
 	"github.com/albertoaer/venus/govenus/protocol"
 	"github.com/albertoaer/venus/govenus/utils"
 )
 
 type Mediator struct {
 	mailboxes *utils.ConcurrentArray[MailBox]
-	provider  protocol.PacketProvider
+	channel   protocol.PacketChannel
 	client    protocol.Client
 }
 
-func NewMediator(provider protocol.PacketProvider) *Mediator {
+func NewMediator(channel protocol.PacketChannel) *Mediator {
 	client := protocol.NewClient()
 	mediator := &Mediator{
 		mailboxes: utils.NewArray[MailBox](20),
-		provider:  provider,
+		channel:   channel,
 		client:    client,
 	}
 	client.SetMessageCallback(mediator.onMessage)
@@ -30,17 +32,19 @@ func (mediator *Mediator) onMessage(message protocol.Message) {
 }
 
 func (mediator *Mediator) onPacket(packet protocol.Packet) {
-	packet.Provider.Send(packet)
+	packet.Channel.Send(packet)
 }
 
-func (mediator *Mediator) Attach(mailbox MailBox) *Mediator {
+func (mediator *Mediator) Attach(mailbox MailBox) {
 	mediator.mailboxes.Add(mailbox)
-	return mediator
 }
 
-func (mediator *Mediator) Detach(mailbox MailBox) *Mediator {
+func (mediator *Mediator) Detach(mailbox MailBox) {
 	mediator.mailboxes.Remove(mailbox)
-	return mediator
+}
+
+func (mediator *Mediator) SetAddress(id protocol.ClientId, address net.Addr) {
+	mediator.client.ForceAlias(id, address, mediator.channel)
 }
 
 func (mediator *Mediator) GetId() protocol.ClientId {
@@ -52,10 +56,10 @@ func (mediator *Mediator) Send(message protocol.Message) {
 }
 
 func (mediator *Mediator) Start() (err error) {
-	err = mediator.provider.Start()
+	err = mediator.channel.Start()
 	if err == nil {
 		for {
-			emitter := mediator.provider.Emitter()
+			emitter := mediator.channel.Emitter()
 			packet := <-emitter
 			mediator.client.ProcessPacket(packet)
 		}

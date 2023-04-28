@@ -1,7 +1,7 @@
 package protocol
 
 import (
-	"fmt"
+	"errors"
 	"math/rand"
 	"net"
 
@@ -10,32 +10,32 @@ import (
 	"github.com/albertoaer/venus/govenus/utils"
 )
 
-type activeCommunication struct {
+type knownHost struct {
 	unordered     *utils.PriorityQueue[Message]
-	provider      PacketProvider
+	provider      PacketChannel
 	address       net.Addr
 	lastTimestamp int64
 }
 
-func newActiveCommunication(provider PacketProvider, address net.Addr) *activeCommunication {
-	return &activeCommunication{
+func newKnownHost(channel PacketChannel, address net.Addr) *knownHost {
+	return &knownHost{
 		unordered: utils.NewPriorityQueue(
 			func(m1, m2 Message) bool {
-				return m1.Timestamp() < m2.Timestamp()
+				return m1.Timestamp < m2.Timestamp
 			},
 		),
-		provider:      provider,
+		provider:      channel,
 		address:       address,
 		lastTimestamp: -1,
 	}
 }
 
 type baseClient struct {
-	serializer           MessageSerializer
-	id                   ClientId
-	packetCallback       func(Packet)
-	messageCallback      func(Message)
-	activeCommunications map[ClientId]*activeCommunication
+	serializer      MessageSerializer
+	id              ClientId
+	packetCallback  func(Packet)
+	messageCallback func(Message)
+	knownHosts      map[ClientId]*knownHost
 }
 
 func NewClient() Client {
@@ -43,11 +43,11 @@ func NewClient() Client {
 	entropy := ulid.Monotonic(rand.New(rand.NewSource(int64(timestamp))), 0)
 	id := ulid.MustNew(timestamp, entropy)
 	return &baseClient{
-		serializer:           &jsonSerializer{},
-		id:                   ClientId(id.String()),
-		packetCallback:       nil,
-		messageCallback:      nil,
-		activeCommunications: make(map[ClientId]*activeCommunication),
+		serializer:      &jsonSerializer{},
+		id:              ClientId(id.String()),
+		packetCallback:  nil,
+		messageCallback: nil,
+		knownHosts:      make(map[ClientId]*knownHost),
 	}
 }
 
@@ -63,41 +63,41 @@ func (client *baseClient) SetMessageCallback(callback func(Message)) {
 	client.messageCallback = callback
 }
 
-func (client *baseClient) ProcessPacket(packet Packet) {
+func (client *baseClient) ProcessPacket(packet Packet) error {
 	msg, err := client.serializer.Deserialize(packet.Data)
-	if err != nil { // TODO: handle properly
-		fmt.Printf("Error: %s\n", err.Error())
-		return
+	if err != nil {
+		return err
 	}
-	if msg.Receiver() != nil && *msg.Receiver() != client.id {
-		return
-	}
-	if _, exists := client.activeCommunications[msg.Sender()]; exists {
+	if _, exists := client.knownHosts[msg.Sender]; exists {
 		client.messageCallback(msg)
 	} else {
-		client.activeCommunications[msg.Sender()] = newActiveCommunication(packet.Provider, packet.Address)
+		client.knownHosts[msg.Sender] = newKnownHost(packet.Channel, packet.Address)
 		client.messageCallback(msg)
+	}
+	return nil
+}
+
+func (client *baseClient) ProcessMessage(msg Message) error {
+	if msg.Receiver == nil {
+		// TODO: Notify all hosts
+		return nil
+	} else if comm, exists := client.knownHosts[*msg.Receiver]; exists && client.packetCallback != nil {
+		data, err := client.serializer.Serialize(msg)
+		if err != nil {
+			return err
+		}
+		client.packetCallback(Packet{
+			Data:    data,
+			Address: comm.address,
+			Channel: comm.provider,
+		})
+		return nil
+	} else {
+		return errors.New("client not found")
 	}
 }
 
-func (client *baseClient) ProcessMessage(msg Message) {
-	if msg.Sender() != client.id {
-		return
-	}
-	if msg.Receiver() == nil {
-		// TODO: Notify all hosts
-	} else if comm, exists := client.activeCommunications[*msg.Receiver()]; exists && client.packetCallback != nil {
-		data, err := client.serializer.Serialize(msg)
-		if err != nil { // TODO: handle properly
-			fmt.Printf("Error: %s\n", err.Error())
-			return
-		}
-		client.packetCallback(Packet{
-			Data:     data,
-			Address:  comm.address,
-			Provider: comm.provider,
-		})
-	} else {
-		// TODO: handle properly
-	}
+func (client *baseClient) ForceAlias(id ClientId, address net.Addr, channel PacketChannel) error {
+	client.knownHosts[id] = newKnownHost(channel, address)
+	return nil
 }

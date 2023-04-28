@@ -3,12 +3,12 @@ package protocol
 import "net"
 
 type Packet struct {
-	Data     []byte
-	Address  net.Addr
-	Provider PacketProvider
+	Data    []byte
+	Address net.Addr
+	Channel PacketChannel
 }
 
-type PacketProvider interface {
+type PacketChannel interface {
 	Emitter() <-chan Packet
 	Start() error
 	Send(Packet) error
@@ -20,16 +20,16 @@ type ClientId string
 
 type Verb string
 
-type Message interface {
-	Sender() ClientId
-	Receiver() *ClientId // Optional
-	Timestamp() int64
-	PreviousTimestamp() *int64 // Optional
-	Verb() Verb
-	Type() MessageType
-	Args() []string
-	Options() map[string]string
-	Payload() []byte
+type Message struct {
+	Sender            ClientId
+	Receiver          *ClientId // Optional
+	Timestamp         int64
+	PreviousTimestamp *int64 // Optional
+	Verb              Verb
+	Type              MessageType
+	Args              []string
+	Options           map[string]string
+	Payload           []byte
 }
 
 type MessageSerializer interface {
@@ -41,6 +41,7 @@ type Client interface {
 	GetId() ClientId
 	SetPacketCallback(func(Packet))
 	SetMessageCallback(func(Message))
-	ProcessPacket(Packet)
-	ProcessMessage(Message)
+	ProcessPacket(Packet) error
+	ProcessMessage(Message) error
+	ForceAlias(ClientId, net.Addr, PacketChannel) error
 }

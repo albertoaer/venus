@@ -59,20 +59,30 @@ func (*jsonSerializer) Deserialize(packet []byte) (Message, error) {
 		Payload_: make([]byte, 0),
 	}
 	err := json.Unmarshal(packet, &message)
-	return message, err
+	return Message{
+		Sender:            message.Sender_,
+		Receiver:          message.Receiver_,
+		Timestamp:         message.Timestamp_,
+		PreviousTimestamp: message.PreviousTimestamp_,
+		Type:              message.Type_,
+		Verb:              message.Verb_,
+		Args:              message.Args_,
+		Options:           message.Options_,
+		Payload:           message.Payload_,
+	}, err
 }
 
 func (*jsonSerializer) Serialize(msg Message) ([]byte, error) {
 	message := jsonMessage{
-		Sender_:            msg.Sender(),
-		Receiver_:          msg.Receiver(),
-		Timestamp_:         msg.Timestamp(),
-		PreviousTimestamp_: msg.PreviousTimestamp(),
-		Type_:              msg.Type(),
-		Verb_:              msg.Verb(),
-		Args_:              msg.Args(),
-		Options_:           msg.Options(),
-		Payload_:           msg.Payload(),
+		Sender_:            msg.Sender,
+		Receiver_:          msg.Receiver,
+		Timestamp_:         msg.Timestamp,
+		PreviousTimestamp_: msg.PreviousTimestamp,
+		Type_:              msg.Type,
+		Verb_:              msg.Verb,
+		Args_:              msg.Args,
+		Options_:           msg.Options,
+		Payload_:           msg.Payload,
 	}
 	return json.Marshal(message)
 }
