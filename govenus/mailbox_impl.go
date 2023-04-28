@@ -2,9 +2,14 @@ package govenus
 
 import "github.com/albertoaer/venus/govenus/protocol"
 
-type MailContext = EventContext[protocol.Message]
+type MailEvent struct {
+	Message protocol.Message
+	Client  ClientService
+}
 
-type MailTask = EventTask[protocol.Message]
+type MailContext = EventContext[MailEvent]
+
+type MailTask = EventTask[MailEvent]
 
 type RuntimeMailbox struct {
 	runtime         Runtime
@@ -28,17 +33,20 @@ func (rm *RuntimeMailbox) OnDefault(task MailTask) {
 	rm.defaultResponse = task
 }
 
-func (rm *RuntimeMailbox) Notify(message protocol.Message) {
+func (rm *RuntimeMailbox) Notify(message protocol.Message, client ClientService) {
 	if message.Type() != protocol.MESSAGE_TYPE_PERFORM {
 		return
 	}
 	context := rm.runtime.NewContext()
-	taskBuilder := NewEventTaskBuilder[protocol.Message]()
-	taskBuilder.SetEvent(message)
+	taskBuilder := NewEventTaskBuilder[MailEvent]()
+	taskBuilder.SetEvent(MailEvent{
+		Message: message,
+		Client:  client,
+	})
 	if task, exists := rm.responses[message.Verb()]; exists {
-		taskBuilder.SetTask(EventTask[protocol.Message](task))
+		taskBuilder.SetTask(EventTask[MailEvent](task))
 	} else if rm.defaultResponse != nil {
-		taskBuilder.SetTask(EventTask[protocol.Message](rm.defaultResponse))
+		taskBuilder.SetTask(EventTask[MailEvent](rm.defaultResponse))
 	}
 	rm.runtime.LaunchWith(taskBuilder.Build(), context)
 }

@@ -25,7 +25,7 @@ func NewMediator(provider protocol.PacketProvider) *Mediator {
 
 func (mediator *Mediator) onMessage(message protocol.Message) {
 	mediator.mailboxes.ForEach(func(_ int, mb MailBox) {
-		mb.Notify(message)
+		mb.Notify(message, mediator)
 	})
 }
 
@@ -41,6 +41,14 @@ func (mediator *Mediator) Attach(mailbox MailBox) *Mediator {
 func (mediator *Mediator) Detach(mailbox MailBox) *Mediator {
 	mediator.mailboxes.Remove(mailbox)
 	return mediator
+}
+
+func (mediator *Mediator) GetId() protocol.ClientId {
+	return mediator.client.GetId()
+}
+
+func (mediator *Mediator) Send(message protocol.Message) {
+	mediator.client.ProcessMessage(message)
 }
 
 func (mediator *Mediator) Start() (err error) {

@@ -1,9 +1,11 @@
 package protocol
 
 const (
-	Ping Verb = "PING"
-	Find Verb = "FIND"
-	Id   Verb = "ID"
+	Ping   Verb = "PING"
+	Find   Verb = "FIND"
+	Id     Verb = "ID"
+	Run    Verb = "RUN"
+	Result Verb = "RESULT"
 )
 
 const (

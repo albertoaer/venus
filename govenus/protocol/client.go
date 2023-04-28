@@ -84,7 +84,9 @@ func (client *baseClient) ProcessMessage(msg Message) {
 	if msg.Sender() != client.id {
 		return
 	}
-	if comm, exists := client.activeCommunications[msg.Sender()]; exists && client.packetCallback != nil {
+	if msg.Receiver() == nil {
+		// TODO: Notify all hosts
+	} else if comm, exists := client.activeCommunications[*msg.Receiver()]; exists && client.packetCallback != nil {
 		data, err := client.serializer.Serialize(msg)
 		if err != nil { // TODO: handle properly
 			fmt.Printf("Error: %s\n", err.Error())
@@ -95,5 +97,7 @@ func (client *baseClient) ProcessMessage(msg Message) {
 			Address:  comm.address,
 			Provider: comm.provider,
 		})
+	} else {
+		// TODO: handle properly
 	}
 }

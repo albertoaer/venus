@@ -20,6 +20,6 @@ func NewCustomSniffer(action func(protocol.Message)) MailBox {
 	return &sniffer{action: action}
 }
 
-func (sniffer *sniffer) Notify(msg protocol.Message) {
+func (sniffer *sniffer) Notify(msg protocol.Message, _ ClientService) {
 	sniffer.action(msg)
 }

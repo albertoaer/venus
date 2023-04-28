@@ -63,5 +63,16 @@ func (*jsonSerializer) Deserialize(packet []byte) (Message, error) {
 }
 
 func (*jsonSerializer) Serialize(msg Message) ([]byte, error) {
-	return json.Marshal(msg)
+	message := jsonMessage{
+		Sender_:            msg.Sender(),
+		Receiver_:          msg.Receiver(),
+		Timestamp_:         msg.Timestamp(),
+		PreviousTimestamp_: msg.PreviousTimestamp(),
+		Type_:              msg.Type(),
+		Verb_:              msg.Verb(),
+		Args_:              msg.Args(),
+		Options_:           msg.Options(),
+		Payload_:           msg.Payload(),
+	}
+	return json.Marshal(message)
 }
