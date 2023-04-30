@@ -39,7 +39,6 @@ type MessageSerializer interface {
 
 type Client interface {
 	GetId() ClientId
-	SetPacketCallback(func(Packet))
 	SetMessageCallback(func(Message))
 	ProcessPacket(Packet) error
 	ProcessMessage(Message) error
