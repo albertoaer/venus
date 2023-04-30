@@ -41,7 +41,11 @@ func (tcp *TcpPackageChannel) Start() (err error) {
 	if err == nil {
 		fmt.Printf("Starting tcp server at port: %d\n", tcp.port)
 		go func() {
-			for conn, err := tcp.conn.AcceptTCP(); err == nil; {
+			for {
+				conn, err := tcp.conn.AcceptTCP()
+				if err != nil {
+					break
+				}
 				go tcp.handleConnection(conn)
 			}
 		}()
@@ -81,7 +85,11 @@ func (tcp *TcpPackageChannel) handleConnection(conn *net.TCPConn) {
 	tcp.connectionsRW.Unlock()
 	// TODO: maybe reduce the number of buffers
 	buffer := make([]byte, NetBufferSize)
-	for size, err := conn.Read(buffer); err == nil; {
+	for {
+		size, err := conn.Read(buffer)
+		if err != nil {
+			break
+		}
 		fmt.Printf("Got package of size %d\n", size)
 		tcp.emitter <- protocol.Packet{
 			Data:    buffer[:size],
