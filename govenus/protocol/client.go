@@ -2,17 +2,14 @@ package protocol
 
 import (
 	"errors"
-	"math/rand"
 	"net"
-
-	"github.com/oklog/ulid"
 
 	"github.com/albertoaer/venus/govenus/utils"
 )
 
 type knownHost struct {
 	unordered     *utils.PriorityQueue[Message]
-	provider      PacketChannel
+	channel       PacketChannel
 	address       net.Addr
 	lastTimestamp int64
 }
@@ -24,7 +21,7 @@ func newKnownHost(channel PacketChannel, address net.Addr) *knownHost {
 				return m1.Timestamp < m2.Timestamp
 			},
 		),
-		provider:      channel,
+		channel:       channel,
 		address:       address,
 		lastTimestamp: -1,
 	}
@@ -38,13 +35,10 @@ type baseClient struct {
 	knownHosts      map[ClientId]*knownHost
 }
 
-func NewClient() Client {
-	timestamp := ulid.Now()
-	entropy := ulid.Monotonic(rand.New(rand.NewSource(int64(timestamp))), 0)
-	id := ulid.MustNew(timestamp, entropy)
+func NewClient(id ClientId) Client {
 	return &baseClient{
 		serializer:      &jsonSerializer{},
-		id:              ClientId(id.String()),
+		id:              id,
 		packetCallback:  nil,
 		messageCallback: nil,
 		knownHosts:      make(map[ClientId]*knownHost),
@@ -89,7 +83,7 @@ func (client *baseClient) ProcessMessage(msg Message) error {
 		client.packetCallback(Packet{
 			Data:    data,
 			Address: comm.address,
-			Channel: comm.provider,
+			Channel: comm.channel,
 		})
 		return nil
 	} else {
