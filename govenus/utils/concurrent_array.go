@@ -14,10 +14,16 @@ func NewArray[T any](initialCapacity int) *ConcurrentArray[T] {
 	}
 }
 
+func (arr *ConcurrentArray[T]) Length() int {
+	arr.rwMutex.RLock()
+	defer arr.rwMutex.RUnlock()
+	return len(arr.elements)
+}
+
 func (arr *ConcurrentArray[T]) Add(item T) {
 	arr.rwMutex.Lock()
+	defer arr.rwMutex.Unlock()
 	arr.elements = append(arr.elements, item)
-	arr.rwMutex.Unlock()
 }
 
 func (arr *ConcurrentArray[T]) Remove(item T) {
