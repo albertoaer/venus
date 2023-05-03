@@ -10,9 +10,7 @@ type MessageBuilder interface {
 	SetSender(ClientId) MessageBuilder
 	SetReceiver(ClientId) MessageBuilder
 	SetTimestamp(int64) MessageBuilder
-	SetPreviousTimestamp(int64) MessageBuilder
 	SetVerb(Verb) MessageBuilder
-	SetType(MessageType) MessageBuilder
 	SetArgs([]string) MessageBuilder
 	SetOptions(map[string]string) MessageBuilder
 	SetPayload([]byte) MessageBuilder
@@ -22,15 +20,14 @@ type MessageBuilder interface {
 func NewMessageBuilder(sender ClientId) MessageBuilder {
 	return &messageBuilder{
 		message: Message{
-			Args:              make([]string, 0),
-			Options:           make(map[string]string, 0),
-			Payload:           make([]byte, 0),
-			PreviousTimestamp: nil,
-			Receiver:          nil,
-			Sender:            sender,
-			Timestamp:         time.Now().UnixMilli(),
-			Type:              MESSAGE_TYPE_PERFORM,
-			Verb:              Ping,
+			Args:      make([]string, 0),
+			Options:   make(map[string]string, 0),
+			Payload:   make([]byte, 0),
+			Receiver:  nil,
+			Sender:    sender,
+			Timestamp: time.Now().UnixMilli(),
+			Verb:      Ping,
+			Valid:     true,
 		},
 	}
 }
@@ -60,11 +57,6 @@ func (mb *messageBuilder) SetPayload(payload []byte) MessageBuilder {
 	return mb
 }
 
-func (mb *messageBuilder) SetPreviousTimestamp(previousTimestamp int64) MessageBuilder {
-	mb.message.PreviousTimestamp = &previousTimestamp
-	return mb
-}
-
 func (mb *messageBuilder) SetReceiver(receiver ClientId) MessageBuilder {
 	mb.message.Receiver = &receiver
 	return mb
@@ -77,11 +69,6 @@ func (mb *messageBuilder) SetSender(sender ClientId) MessageBuilder {
 
 func (mb *messageBuilder) SetTimestamp(timestamp int64) MessageBuilder {
 	mb.message.Timestamp = timestamp
-	return mb
-}
-
-func (mb *messageBuilder) SetType(messageType MessageType) MessageBuilder {
-	mb.message.Type = messageType
 	return mb
 }
 

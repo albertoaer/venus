@@ -1,17 +1,18 @@
 package protocol
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+)
 
 type jsonMessage struct {
-	Sender_            ClientId          `json:"sender"`
-	Receiver_          *ClientId         `json:"receiver,omitempty"`
-	Timestamp_         int64             `json:"timestamp"`
-	PreviousTimestamp_ *int64            `json:"previousTimestamp,omitempty"`
-	Type_              MessageType       `json:"type"`
-	Verb_              Verb              `json:"verb"`
-	Args_              []string          `json:"args,omitempty"`
-	Options_           map[string]string `json:"options,omitempty"`
-	Payload_           []byte            `json:"payload,omitempty"`
+	Sender_    ClientId          `json:"sender"`
+	Receiver_  *ClientId         `json:"receiver,omitempty"`
+	Timestamp_ int64             `json:"timestamp"`
+	Verb_      Verb              `json:"verb"`
+	Args_      []string          `json:"args,omitempty"`
+	Options_   map[string]string `json:"options,omitempty"`
+	Payload_   []byte            `json:"payload,omitempty"`
 }
 
 func (jm jsonMessage) Args() []string {
@@ -26,10 +27,6 @@ func (jm jsonMessage) Payload() []byte {
 	return jm.Payload_
 }
 
-func (jm jsonMessage) PreviousTimestamp() *int64 {
-	return jm.PreviousTimestamp_
-}
-
 func (jm jsonMessage) Receiver() *ClientId {
 	return jm.Receiver_
 }
@@ -42,10 +39,6 @@ func (jm jsonMessage) Timestamp() int64 {
 	return jm.Timestamp_
 }
 
-func (jm jsonMessage) Type() MessageType {
-	return jm.Type_
-}
-
 func (jm jsonMessage) Verb() Verb {
 	return jm.Verb_
 }
@@ -53,6 +46,7 @@ func (jm jsonMessage) Verb() Verb {
 type jsonSerializer struct{}
 
 func (*jsonSerializer) Deserialize(packet []byte) (Message, error) {
+	fmt.Println(string(packet))
 	message := jsonMessage{
 		Args_:    make([]string, 0),
 		Options_: make(map[string]string, 0),
@@ -60,29 +54,26 @@ func (*jsonSerializer) Deserialize(packet []byte) (Message, error) {
 	}
 	err := json.Unmarshal(packet, &message)
 	return Message{
-		Sender:            message.Sender_,
-		Receiver:          message.Receiver_,
-		Timestamp:         message.Timestamp_,
-		PreviousTimestamp: message.PreviousTimestamp_,
-		Type:              message.Type_,
-		Verb:              message.Verb_,
-		Args:              message.Args_,
-		Options:           message.Options_,
-		Payload:           message.Payload_,
+		Sender:    message.Sender_,
+		Receiver:  message.Receiver_,
+		Timestamp: message.Timestamp_,
+		Verb:      message.Verb_,
+		Args:      message.Args_,
+		Options:   message.Options_,
+		Payload:   message.Payload_,
+		Valid:     true,
 	}, err
 }
 
 func (*jsonSerializer) Serialize(msg Message) ([]byte, error) {
 	message := jsonMessage{
-		Sender_:            msg.Sender,
-		Receiver_:          msg.Receiver,
-		Timestamp_:         msg.Timestamp,
-		PreviousTimestamp_: msg.PreviousTimestamp,
-		Type_:              msg.Type,
-		Verb_:              msg.Verb,
-		Args_:              msg.Args,
-		Options_:           msg.Options,
-		Payload_:           msg.Payload,
+		Sender_:    msg.Sender,
+		Receiver_:  msg.Receiver,
+		Timestamp_: msg.Timestamp,
+		Verb_:      msg.Verb,
+		Args_:      msg.Args,
+		Options_:   msg.Options,
+		Payload_:   msg.Payload,
 	}
 	return json.Marshal(message)
 }

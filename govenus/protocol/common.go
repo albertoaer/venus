@@ -14,22 +14,19 @@ type PacketChannel interface {
 	Send(Packet) error
 }
 
-type MessageType int8
-
 type ClientId string
 
 type Verb string
 
 type Message struct {
-	Sender            ClientId
-	Receiver          *ClientId // Optional
-	Timestamp         int64
-	PreviousTimestamp *int64 // Optional
-	Verb              Verb
-	Type              MessageType
-	Args              []string
-	Options           map[string]string
-	Payload           []byte
+	Sender    ClientId
+	Receiver  *ClientId // Optional
+	Timestamp int64
+	Verb      Verb
+	Args      []string
+	Options   map[string]string
+	Payload   []byte
+	Valid     bool // Not serialized, true for any incoming/created not default Message
 }
 
 type MessageSerializer interface {
@@ -39,8 +36,7 @@ type MessageSerializer interface {
 
 type Client interface {
 	GetId() ClientId
-	SetMessageCallback(func(Message))
-	ProcessPacket(Packet) error
+	ProcessPacket(Packet) (Message, error)
 	ProcessMessage(Message) error
 	ForceAlias(ClientId, net.Addr, PacketChannel) error
 }
