@@ -1,22 +1,28 @@
 package protocol
 
-import (
-	"fmt"
-	"net"
-)
+import "fmt"
 
 type baseClient struct {
-	serializer  MessageSerializer
-	id          ClientId
-	peerManager *peerManager
+	id       ClientId
+	endpoint bool
+	senders  map[ClientId]Sender // TODO: allow multiple senders to prevent client replacement
 }
 
 func NewClient(id ClientId) Client {
 	fmt.Println("Client created with id: " + id)
 	return &baseClient{
-		serializer:  &jsonSerializer{},
-		id:          id,
-		peerManager: newPeerManager(),
+		id:       id,
+		endpoint: true,
+		senders:  make(map[ClientId]Sender),
+	}
+}
+
+func NewRouterClient(id ClientId) Client {
+	fmt.Println("Router Client created with id: " + id)
+	return &baseClient{
+		id:       id,
+		endpoint: false,
+		senders:  make(map[ClientId]Sender),
 	}
 }
 
@@ -24,42 +30,36 @@ func (client *baseClient) GetId() ClientId {
 	return client.id
 }
 
-func (client *baseClient) spreadPacket(data []byte, msg Message) {
-	if msg.Receiver != nil && *msg.Receiver == client.id {
-		return
+func (client *baseClient) spreadMessage(message Message, allowBroadcast bool) {
+	if message.Receiver != nil {
+		if *message.Receiver == client.id {
+			return
+		}
+		if sender, exists := client.senders[*message.Receiver]; exists {
+			sender.Send(message)
+			return
+		}
 	}
-	packets := client.peerManager.spreadDataByClient(msg.Receiver, msg.Sender, data, true)
-	for _, packet := range packets {
-		fmt.Println("Packet sent to " + packet.Address.String())
-		packet.Channel.Send(packet)
+	if allowBroadcast {
+		for id, sender := range client.senders {
+			if id != message.Sender {
+				sender.Send(message)
+			}
+		}
 	}
 }
 
-func (client *baseClient) ProcessPacket(packet Packet) (msg Message, err error) {
-	if msg, err = client.serializer.Deserialize(packet.Data); err != nil {
-		return
+func (client *baseClient) GotMessage(message Message, sender Sender) error {
+	if message.Sender != client.id {
+		if _, exists := client.senders[message.Sender]; !exists {
+			client.senders[message.Sender] = sender
+		}
+		client.spreadMessage(message, !client.endpoint)
 	}
-	if msg.Sender == client.id {
-		return
-	}
-	valid := client.peerManager.handlePeerData(msg.Sender, packet.Address, packet.Channel, msg.Timestamp)
-	if !valid {
-		return
-	}
-	client.spreadPacket(packet.Data, msg)
-	return
-}
-
-func (client *baseClient) ProcessMessage(msg Message) error {
-	packet, err := client.serializer.Serialize(msg)
-	if err != nil {
-		return err
-	}
-	client.spreadPacket(packet, msg)
 	return nil
 }
 
-func (client *baseClient) ForceAlias(id ClientId, address net.Addr, channel PacketChannel) error {
-	client.peerManager.addPeer(id, address, channel)
+func (client *baseClient) Send(message Message) error {
+	client.spreadMessage(message, true)
 	return nil
 }

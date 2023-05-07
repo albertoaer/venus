@@ -1,10 +1,13 @@
 package govenus
 
-import "github.com/albertoaer/venus/govenus/protocol"
+import (
+	"github.com/albertoaer/venus/govenus/protocol"
+)
 
 type MailEvent struct {
 	Message protocol.Message
-	Client  ClientService
+	Client  protocol.Client
+	Sender  protocol.Sender
 }
 
 type MailContext = EventContext[MailEvent]
@@ -33,7 +36,7 @@ func (rm *RuntimeMailbox) OnDefault(task MailTask) {
 	rm.defaultResponse = task
 }
 
-func (rm *RuntimeMailbox) Notify(message protocol.Message, client ClientService) {
+func (rm *RuntimeMailbox) Notify(message protocol.Message, client protocol.Client, sender protocol.Sender) {
 	if message.Receiver != nil && *message.Receiver != client.GetId() {
 		return
 	}
@@ -42,6 +45,7 @@ func (rm *RuntimeMailbox) Notify(message protocol.Message, client ClientService)
 	taskBuilder.SetEvent(MailEvent{
 		Message: message,
 		Client:  client,
+		Sender:  sender,
 	})
 	if task, exists := rm.responses[message.Verb]; exists {
 		taskBuilder.SetTask(EventTask[MailEvent](task))

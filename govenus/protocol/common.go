@@ -1,19 +1,5 @@
 package protocol
 
-import "net"
-
-type Packet struct {
-	Data    []byte
-	Address net.Addr
-	Channel PacketChannel
-}
-
-type PacketChannel interface {
-	Emitter() <-chan Packet
-	Start() error
-	Send(Packet) error
-}
-
 type ClientId string
 
 type Verb string
@@ -26,17 +12,23 @@ type Message struct {
 	Args      []string
 	Options   map[string]string
 	Payload   []byte
-	Valid     bool // Not serialized, true for any incoming/created not default Message
 }
 
-type MessageSerializer interface {
-	Deserialize([]byte) (Message, error)
-	Serialize(Message) ([]byte, error)
+type Sender interface {
+	// Returns a possible error and wether has ended or not
+	Send(Message) (err error, done bool)
+}
+
+type MessageChannel interface {
+	Emitter() <-chan struct {
+		Message
+		Sender
+	}
+	Start() error
 }
 
 type Client interface {
 	GetId() ClientId
-	ProcessPacket(Packet) (Message, error)
-	ProcessMessage(Message) error
-	ForceAlias(ClientId, net.Addr, PacketChannel) error
+	GotMessage(Message, Sender) error
+	Send(Message) error
 }

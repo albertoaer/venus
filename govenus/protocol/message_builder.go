@@ -27,7 +27,6 @@ func NewMessageBuilder(sender ClientId) MessageBuilder {
 			Sender:    sender,
 			Timestamp: time.Now().UnixMilli(),
 			Verb:      Ping,
-			Valid:     true,
 		},
 	}
 }

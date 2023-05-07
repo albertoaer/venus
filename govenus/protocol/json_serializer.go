@@ -2,6 +2,7 @@ package protocol
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 )
 
@@ -45,15 +46,20 @@ func (jm jsonMessage) Verb() Verb {
 
 type jsonSerializer struct{}
 
-func (*jsonSerializer) Deserialize(packet []byte) (Message, error) {
+func (*jsonSerializer) Deserialize(packet []byte) (msg Message, err error) {
+	defer func() {
+		if err == nil && recover() != nil {
+			err = errors.New("error deserializing message")
+		}
+	}()
 	fmt.Println(string(packet))
 	message := jsonMessage{
 		Args_:    make([]string, 0),
 		Options_: make(map[string]string, 0),
 		Payload_: make([]byte, 0),
 	}
-	err := json.Unmarshal(packet, &message)
-	return Message{
+	err = json.Unmarshal(packet, &message)
+	msg = Message{
 		Sender:    message.Sender_,
 		Receiver:  message.Receiver_,
 		Timestamp: message.Timestamp_,
@@ -61,8 +67,8 @@ func (*jsonSerializer) Deserialize(packet []byte) (Message, error) {
 		Args:      message.Args_,
 		Options:   message.Options_,
 		Payload:   message.Payload_,
-		Valid:     true,
-	}, err
+	}
+	return
 }
 
 func (*jsonSerializer) Serialize(msg Message) ([]byte, error) {

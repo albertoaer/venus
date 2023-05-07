@@ -10,33 +10,37 @@ import (
 	"github.com/albertoaer/venus/govenus/protocol"
 )
 
-type TcpPackageChannel struct {
+type TcpChannel struct {
 	port          int
 	conn          *net.TCPListener
-	emitter       chan protocol.Packet
+	emitter       chan protocol.BinaryPacket[net.Addr]
 	connections   map[string]*net.TCPConn
 	connectionsRW sync.RWMutex
 }
 
-func NewTcpPackageChannel() *TcpPackageChannel {
-	return &TcpPackageChannel{
+func NewTcpChannel() *TcpChannel {
+	return &TcpChannel{
 		port:          DefaultPort,
-		emitter:       make(chan protocol.Packet),
+		emitter:       make(chan protocol.BinaryPacket[net.Addr]),
 		connections:   make(map[string]*net.TCPConn),
 		connectionsRW: sync.RWMutex{},
 	}
 }
 
-func (tcp *TcpPackageChannel) SetPort(port int) *TcpPackageChannel {
+func (tcp *TcpChannel) AsMessageChannel() protocol.OpenableChannel[net.Addr] {
+	return protocol.AdaptBinaryChannel[net.Addr](tcp)
+}
+
+func (tcp *TcpChannel) SetPort(port int) *TcpChannel {
 	tcp.port = port
 	return tcp
 }
 
-func (tcp *TcpPackageChannel) Emitter() <-chan protocol.Packet {
+func (tcp *TcpChannel) Emitter() <-chan protocol.BinaryPacket[net.Addr] {
 	return tcp.emitter
 }
 
-func (tcp *TcpPackageChannel) Start() (err error) {
+func (tcp *TcpChannel) Start() (err error) {
 	tcp.conn, err = net.ListenTCP("tcp", &net.TCPAddr{Port: tcp.port})
 	if err == nil {
 		fmt.Printf("Starting tcp server at port: %d\n", tcp.port)
@@ -53,7 +57,7 @@ func (tcp *TcpPackageChannel) Start() (err error) {
 	return
 }
 
-func (tcp *TcpPackageChannel) Send(packet protocol.Packet) (err error) {
+func (tcp *TcpChannel) Send(packet protocol.BinaryPacket[net.Addr]) (err error) {
 	if !strings.HasPrefix(packet.Address.Network(), "tcp") {
 		return errors.New("expecting tcp address")
 	}
@@ -79,7 +83,7 @@ func (tcp *TcpPackageChannel) Send(packet protocol.Packet) (err error) {
 	return
 }
 
-func (tcp *TcpPackageChannel) handleConnection(conn *net.TCPConn) {
+func (tcp *TcpChannel) handleConnection(conn *net.TCPConn) {
 	tcp.connectionsRW.Lock()
 	tcp.connections[conn.RemoteAddr().String()] = conn
 	tcp.connectionsRW.Unlock()
@@ -90,11 +94,10 @@ func (tcp *TcpPackageChannel) handleConnection(conn *net.TCPConn) {
 		if err != nil {
 			break
 		}
-		fmt.Printf("Got package of size %d\n", size)
-		tcp.emitter <- protocol.Packet{
+		fmt.Println("Got package of size", size, "from", conn.RemoteAddr())
+		tcp.emitter <- protocol.BinaryPacket[net.Addr]{
 			Data:    buffer[:size],
 			Address: conn.RemoteAddr(),
-			Channel: tcp,
 		}
 	}
 	tcp.connectionsRW.Lock()
