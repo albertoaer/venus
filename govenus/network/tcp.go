@@ -1,8 +1,10 @@
 package network
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"strings"
 	"sync"
@@ -65,7 +67,7 @@ func (tcp *TcpChannel) Send(packet comm.BinaryPacket[net.Addr]) (err error) {
 	conn, exists := tcp.connections[packet.Address.String()]
 	tcp.connectionsRW.RUnlock()
 	if exists {
-		_, err = conn.Write(packet.Data)
+		err = tcpSend(conn, packet.Data)
 	} else {
 		var addr *net.TCPAddr
 		if addr, err = net.ResolveTCPAddr(packet.Address.Network(), packet.Address.String()); err != nil {
@@ -74,7 +76,7 @@ func (tcp *TcpChannel) Send(packet comm.BinaryPacket[net.Addr]) (err error) {
 		if conn, err = net.DialTCP(packet.Address.Network(), nil, addr); err != nil {
 			return
 		}
-		if _, err = conn.Write(packet.Data); err == nil {
+		if err = tcpSend(conn, packet.Data); err == nil {
 			go tcp.handleConnection(conn)
 		} else {
 			conn.Close()
@@ -83,21 +85,38 @@ func (tcp *TcpChannel) Send(packet comm.BinaryPacket[net.Addr]) (err error) {
 	return
 }
 
+func tcpSend(writer io.Writer, data []byte) error {
+	if err := binary.Write(writer, binary.LittleEndian, uint64(len(data))); err != nil {
+		return err
+	}
+	_, err := writer.Write(data)
+	return err
+}
+
+func tcpRead(reader io.Reader) (buffer []byte, err error) {
+	var size uint64
+	if err = binary.Read(reader, binary.LittleEndian, &size); err != nil {
+		return nil, err
+	}
+	buffer = make([]byte, size)
+	var sz int
+	sz, err = reader.Read(buffer)
+	return buffer[:sz], err
+}
+
 func (tcp *TcpChannel) handleConnection(conn *net.TCPConn) {
 	tcp.connectionsRW.Lock()
 	tcp.connections[conn.RemoteAddr().String()] = conn
 	tcp.connectionsRW.Unlock()
-	// TODO: maybe reduce the number of buffers
-	buffer := make([]byte, NetBufferSize)
 	for {
-		size, err := conn.Read(buffer)
-		if err != nil {
+		if buffer, err := tcpRead(conn); err == nil {
+			fmt.Println("Got package of size", len(buffer), "from", conn.RemoteAddr())
+			tcp.emitter <- comm.BinaryPacket[net.Addr]{
+				Data:    buffer,
+				Address: conn.RemoteAddr(),
+			}
+		} else {
 			break
-		}
-		fmt.Println("Got package of size", size, "from", conn.RemoteAddr())
-		tcp.emitter <- comm.BinaryPacket[net.Addr]{
-			Data:    buffer[:size],
-			Address: conn.RemoteAddr(),
 		}
 	}
 	tcp.connectionsRW.Lock()
