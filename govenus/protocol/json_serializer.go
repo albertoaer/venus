@@ -46,6 +46,10 @@ func (jm jsonMessage) Verb() Verb {
 
 type jsonSerializer struct{}
 
+func NewJsonSerializer() MessageSerializer {
+	return &jsonSerializer{}
+}
+
 func (*jsonSerializer) Deserialize(packet []byte) (msg Message, err error) {
 	defer func() {
 		if err == nil && recover() != nil {

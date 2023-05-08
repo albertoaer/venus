@@ -19,29 +19,20 @@ type BinaryChannel[T any] interface {
 type binaryAdapter[T any] struct {
 	adapted   BinaryChannel[T]
 	serialier MessageSerializer
-	emitter   chan struct {
-		Message
-		Sender
-	}
-	senders map[any]Sender
+	emitter   chan ChannelEvent
+	senders   map[any]Sender
 }
 
 func AdaptBinaryChannel[T any](adapted BinaryChannel[T]) OpenableChannel[T] {
 	return &binaryAdapter[T]{
 		adapted:   adapted,
 		serialier: newSerializer(),
-		emitter: make(chan struct {
-			Message
-			Sender
-		}),
-		senders: make(map[any]Sender),
+		emitter:   make(chan ChannelEvent),
+		senders:   make(map[any]Sender),
 	}
 }
 
-func (adapter *binaryAdapter[_]) Emitter() <-chan struct {
-	Message
-	Sender
-} {
+func (adapter *binaryAdapter[_]) Emitter() <-chan ChannelEvent {
 	return adapter.emitter
 }
 
@@ -87,14 +78,14 @@ type binarySender[T any] struct {
 	address   T
 }
 
-func (sender binarySender[T]) Send(message Message) (error, bool) {
+func (sender binarySender[T]) Send(message Message) (bool, error) {
 	data, err := sender.serialier.Serialize(message)
 	if err != nil {
-		return err, false
+		return false, err
 	}
 	sender.channel.Send(BinaryPacket[T]{
 		Data:    data,
 		Address: sender.address,
 	})
-	return nil, false
+	return false, nil
 }

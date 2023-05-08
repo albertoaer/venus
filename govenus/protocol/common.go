@@ -16,14 +16,16 @@ type Message struct {
 
 type Sender interface {
 	// Returns a possible error and wether has ended or not
-	Send(Message) (err error, done bool)
+	Send(Message) (done bool, err error)
+}
+
+type ChannelEvent struct {
+	Message
+	Sender
 }
 
 type MessageChannel interface {
-	Emitter() <-chan struct {
-		Message
-		Sender
-	}
+	Emitter() <-chan ChannelEvent
 	Start() error
 }
 
