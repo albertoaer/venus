@@ -29,8 +29,14 @@ type MessageChannel interface {
 	Start() error
 }
 
+type Mailbox interface {
+	Notify(ChannelEvent, Client)
+}
+
 type Client interface {
 	GetId() ClientId
-	GotMessage(Message, Sender) error
 	Send(Message) error
+	Attach(Mailbox)
+	Detach(Mailbox)
+	StartChannel(MessageChannel) error
 }
