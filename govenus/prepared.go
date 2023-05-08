@@ -15,8 +15,8 @@ func SayHi[K any](client comm.Client, address K, channel comm.OpenableChannel[K]
 	}
 	messageBuilder := comm.NewMessageBuilder(client.GetId())
 	messageBuilder.SetVerb(comm.Hi)
-	sender.Send(messageBuilder.Build())
-	return nil
+	_, err = sender.Send(messageBuilder.Build())
+	return err
 }
 
 func SetupTcpClient(port int) (comm.Client, comm.OpenableChannel[net.Addr]) {

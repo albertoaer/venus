@@ -2,8 +2,8 @@ package network
 
 import (
 	"errors"
+	"fmt"
 	"net"
-	"strings"
 
 	"github.com/albertoaer/venus/govenus/comm"
 )
@@ -36,8 +36,12 @@ func (udp *UdpChannel) Emitter() <-chan comm.BinaryPacket[net.Addr] {
 }
 
 func (udp *UdpChannel) Start() (err error) {
+	if udp.conn != nil {
+		return errors.New("already started")
+	}
 	udp.conn, err = net.ListenUDP("udp", &net.UDPAddr{Port: udp.port})
 	if err == nil {
+		fmt.Printf("Starting udp listenner at port: %d\n", udp.port)
 		go func() {
 			buffer := make([]byte, NetBufferSize)
 			for {
@@ -54,9 +58,6 @@ func (udp *UdpChannel) Start() (err error) {
 }
 
 func (udp *UdpChannel) Send(packet comm.BinaryPacket[net.Addr]) (err error) {
-	if !strings.HasPrefix(packet.Address.Network(), "udp") {
-		return errors.New("expecting udp address")
-	}
 	_, err = udp.conn.WriteTo(packet.Data, packet.Address)
 	return
 }

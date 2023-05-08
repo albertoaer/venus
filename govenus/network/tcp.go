@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"net"
-	"strings"
 	"sync"
 
 	"github.com/albertoaer/venus/govenus/comm"
@@ -43,9 +42,12 @@ func (tcp *TcpChannel) Emitter() <-chan comm.BinaryPacket[net.Addr] {
 }
 
 func (tcp *TcpChannel) Start() (err error) {
+	if tcp.conn != nil {
+		return errors.New("already started")
+	}
 	tcp.conn, err = net.ListenTCP("tcp", &net.TCPAddr{Port: tcp.port})
 	if err == nil {
-		fmt.Printf("Starting tcp server at port: %d\n", tcp.port)
+		fmt.Printf("Starting tcp listenner at port: %d\n", tcp.port)
 		go func() {
 			for {
 				conn, err := tcp.conn.AcceptTCP()
@@ -60,9 +62,6 @@ func (tcp *TcpChannel) Start() (err error) {
 }
 
 func (tcp *TcpChannel) Send(packet comm.BinaryPacket[net.Addr]) (err error) {
-	if !strings.HasPrefix(packet.Address.Network(), "tcp") {
-		return errors.New("expecting tcp address")
-	}
 	tcp.connectionsRW.RLock()
 	conn, exists := tcp.connections[packet.Address.String()]
 	tcp.connectionsRW.RUnlock()
