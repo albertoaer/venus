@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/albertoaer/venus/govenus/protocol"
+	"github.com/albertoaer/venus/govenus/comm"
 	"github.com/albertoaer/venus/govenus/utils"
 )
 
@@ -26,10 +26,10 @@ func NewHttpAppChannel() *HttpChannel {
 	return channel
 }
 
-func (handler *httpAppHandler) prepareMessage(request *http.Request) (msg protocol.Message, err error) {
-	msg.Sender = protocol.ClientId(handler.idGenerator.NextId())
+func (handler *httpAppHandler) prepareMessage(request *http.Request) (msg comm.Message, err error) {
+	msg.Sender = comm.ClientId(handler.idGenerator.NextId())
 	msg.Timestamp = time.Now().Unix()
-	msg.Verb = protocol.Verb(request.Method)
+	msg.Verb = comm.Verb(request.Method)
 	msg.Args = []string{request.RequestURI}
 	msg.Payload, err = io.ReadAll(request.Body)
 	if err != nil {
@@ -68,11 +68,11 @@ func (handler *httpAppHandler) ServeHTTP(writer http.ResponseWriter, request *ht
 	}
 
 	gms := genericMessageSender{
-		messageReceiver: make(chan protocol.Message),
+		messageReceiver: make(chan comm.Message),
 		errorReceiver:   make(chan error),
 	}
 
-	handler.channel.emitter <- protocol.ChannelEvent{
+	handler.channel.emitter <- comm.ChannelEvent{
 		Message: message,
 		Sender:  &gms,
 	}

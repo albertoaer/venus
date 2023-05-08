@@ -4,19 +4,19 @@ import (
 	"net/http"
 	"strconv"
 
-	"github.com/albertoaer/venus/govenus/protocol"
+	"github.com/albertoaer/venus/govenus/comm"
 )
 
 type HttpChannel struct {
 	port    int
-	emitter chan protocol.ChannelEvent
+	emitter chan comm.ChannelEvent
 	handler http.Handler
 }
 
 func newHttpChannel(handler http.Handler) *HttpChannel {
 	channel := &HttpChannel{
 		port:    80,
-		emitter: make(chan protocol.ChannelEvent),
+		emitter: make(chan comm.ChannelEvent),
 		handler: handler,
 	}
 	channel.handler = handler
@@ -28,7 +28,7 @@ func (httpChannel *HttpChannel) SetPort(port int) *HttpChannel {
 	return httpChannel
 }
 
-func (httpChannel *HttpChannel) Emitter() <-chan protocol.ChannelEvent {
+func (httpChannel *HttpChannel) Emitter() <-chan comm.ChannelEvent {
 	return httpChannel.emitter
 }
 
@@ -42,11 +42,11 @@ func (httpChannel *HttpChannel) Start() error {
 }
 
 type genericMessageSender struct {
-	messageReceiver chan protocol.Message
+	messageReceiver chan comm.Message
 	errorReceiver   chan error
 }
 
-func (gms *genericMessageSender) Send(message protocol.Message) (bool, error) {
+func (gms *genericMessageSender) Send(message comm.Message) (bool, error) {
 	gms.messageReceiver <- message
 	return true, <-gms.errorReceiver
 }

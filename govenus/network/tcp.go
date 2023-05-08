@@ -7,13 +7,13 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/albertoaer/venus/govenus/protocol"
+	"github.com/albertoaer/venus/govenus/comm"
 )
 
 type TcpChannel struct {
 	port          int
 	conn          *net.TCPListener
-	emitter       chan protocol.BinaryPacket[net.Addr]
+	emitter       chan comm.BinaryPacket[net.Addr]
 	connections   map[string]*net.TCPConn
 	connectionsRW sync.RWMutex
 }
@@ -21,14 +21,14 @@ type TcpChannel struct {
 func NewTcpChannel() *TcpChannel {
 	return &TcpChannel{
 		port:          DefaultPort,
-		emitter:       make(chan protocol.BinaryPacket[net.Addr]),
+		emitter:       make(chan comm.BinaryPacket[net.Addr]),
 		connections:   make(map[string]*net.TCPConn),
 		connectionsRW: sync.RWMutex{},
 	}
 }
 
-func (tcp *TcpChannel) AsMessageChannel() protocol.OpenableChannel[net.Addr] {
-	return protocol.AdaptBinaryChannel[net.Addr](tcp)
+func (tcp *TcpChannel) AsMessageChannel() comm.OpenableChannel[net.Addr] {
+	return comm.AdaptBinaryChannel[net.Addr](tcp)
 }
 
 func (tcp *TcpChannel) SetPort(port int) *TcpChannel {
@@ -36,7 +36,7 @@ func (tcp *TcpChannel) SetPort(port int) *TcpChannel {
 	return tcp
 }
 
-func (tcp *TcpChannel) Emitter() <-chan protocol.BinaryPacket[net.Addr] {
+func (tcp *TcpChannel) Emitter() <-chan comm.BinaryPacket[net.Addr] {
 	return tcp.emitter
 }
 
@@ -57,7 +57,7 @@ func (tcp *TcpChannel) Start() (err error) {
 	return
 }
 
-func (tcp *TcpChannel) Send(packet protocol.BinaryPacket[net.Addr]) (err error) {
+func (tcp *TcpChannel) Send(packet comm.BinaryPacket[net.Addr]) (err error) {
 	if !strings.HasPrefix(packet.Address.Network(), "tcp") {
 		return errors.New("expecting tcp address")
 	}
@@ -95,7 +95,7 @@ func (tcp *TcpChannel) handleConnection(conn *net.TCPConn) {
 			break
 		}
 		fmt.Println("Got package of size", size, "from", conn.RemoteAddr())
-		tcp.emitter <- protocol.BinaryPacket[net.Addr]{
+		tcp.emitter <- comm.BinaryPacket[net.Addr]{
 			Data:    buffer[:size],
 			Address: conn.RemoteAddr(),
 		}

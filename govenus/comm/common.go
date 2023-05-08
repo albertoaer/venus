@@ -1,4 +1,4 @@
-package protocol
+package comm
 
 type ClientId string
 

@@ -1,4 +1,4 @@
-package runtime
+package govenus
 
 type EventContext[T any] interface {
 	RuntimeContext

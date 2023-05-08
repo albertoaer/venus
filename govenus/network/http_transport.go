@@ -4,17 +4,17 @@ import (
 	"io"
 	"net/http"
 
-	"github.com/albertoaer/venus/govenus/protocol"
+	"github.com/albertoaer/venus/govenus/comm"
 )
 
 type httpTransportHandler struct {
 	channel    *HttpChannel
-	serializer protocol.MessageSerializer
+	serializer comm.MessageSerializer
 }
 
 func NewHttpTransportChannel() *HttpChannel {
 	transport := &httpTransportHandler{
-		serializer: protocol.NewJsonSerializer(),
+		serializer: comm.NewJsonSerializer(),
 	}
 	channel := newHttpChannel(transport)
 	transport.channel = channel
@@ -41,10 +41,10 @@ func (handler *httpTransportHandler) ServeHTTP(writer http.ResponseWriter, reque
 		return
 	}
 	gms := genericMessageSender{
-		messageReceiver: make(chan protocol.Message),
+		messageReceiver: make(chan comm.Message),
 		errorReceiver:   make(chan error),
 	}
-	handler.channel.emitter <- protocol.ChannelEvent{
+	handler.channel.emitter <- comm.ChannelEvent{
 		Message: message,
 		Sender:  &gms,
 	}

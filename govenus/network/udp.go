@@ -5,25 +5,25 @@ import (
 	"net"
 	"strings"
 
-	"github.com/albertoaer/venus/govenus/protocol"
+	"github.com/albertoaer/venus/govenus/comm"
 )
 
 type UdpChannel struct {
 	port    int
 	conn    *net.UDPConn
-	emitter chan protocol.BinaryPacket[net.Addr]
+	emitter chan comm.BinaryPacket[net.Addr]
 }
 
 func NewUdpChannel() *UdpChannel {
 	return &UdpChannel{
 		port:    DefaultPort,
 		conn:    nil,
-		emitter: make(chan protocol.BinaryPacket[net.Addr]),
+		emitter: make(chan comm.BinaryPacket[net.Addr]),
 	}
 }
 
-func (udp *UdpChannel) AsMessageChannel() protocol.OpenableChannel[net.Addr] {
-	return protocol.AdaptBinaryChannel[net.Addr](udp)
+func (udp *UdpChannel) AsMessageChannel() comm.OpenableChannel[net.Addr] {
+	return comm.AdaptBinaryChannel[net.Addr](udp)
 }
 
 func (udp *UdpChannel) SetPort(port int) *UdpChannel {
@@ -31,7 +31,7 @@ func (udp *UdpChannel) SetPort(port int) *UdpChannel {
 	return udp
 }
 
-func (udp *UdpChannel) Emitter() <-chan protocol.BinaryPacket[net.Addr] {
+func (udp *UdpChannel) Emitter() <-chan comm.BinaryPacket[net.Addr] {
 	return udp.emitter
 }
 
@@ -42,7 +42,7 @@ func (udp *UdpChannel) Start() (err error) {
 			buffer := make([]byte, NetBufferSize)
 			for {
 				if size, addr, err := udp.conn.ReadFromUDP(buffer); err == nil {
-					udp.emitter <- protocol.BinaryPacket[net.Addr]{
+					udp.emitter <- comm.BinaryPacket[net.Addr]{
 						Data:    buffer[:size],
 						Address: addr,
 					}
@@ -53,7 +53,7 @@ func (udp *UdpChannel) Start() (err error) {
 	return
 }
 
-func (udp *UdpChannel) Send(packet protocol.BinaryPacket[net.Addr]) (err error) {
+func (udp *UdpChannel) Send(packet comm.BinaryPacket[net.Addr]) (err error) {
 	if !strings.HasPrefix(packet.Address.Network(), "udp") {
 		return errors.New("expecting udp address")
 	}

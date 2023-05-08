@@ -1,4 +1,4 @@
-package protocol
+package comm
 
 type MessageSerializer interface {
 	Deserialize([]byte) (Message, error)

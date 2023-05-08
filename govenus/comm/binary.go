@@ -1,4 +1,4 @@
-package protocol
+package comm
 
 type OpenableChannel[T any] interface {
 	MessageChannel
