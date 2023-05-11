@@ -23,10 +23,10 @@ type binaryAdapter[T any] struct {
 	senders   map[any]Sender
 }
 
-func AdaptBinaryChannel[T any](adapted BinaryChannel[T]) OpenableChannel[T] {
+func AdaptBinaryChannel[T any](adapted BinaryChannel[T], serializer MessageSerializer) OpenableChannel[T] {
 	return &binaryAdapter[T]{
 		adapted:   adapted,
-		serialier: newSerializer(),
+		serialier: serializer,
 		emitter:   make(chan ChannelEvent),
 		senders:   make(map[any]Sender),
 	}

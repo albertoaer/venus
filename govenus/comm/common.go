@@ -29,6 +29,11 @@ type MessageChannel interface {
 	Start() error
 }
 
+type MessageSerializer interface {
+	Deserialize([]byte) (Message, error)
+	Serialize(Message) ([]byte, error)
+}
+
 type Mailbox interface {
 	Notify(ChannelEvent, Client)
 }

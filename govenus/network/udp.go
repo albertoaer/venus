@@ -22,8 +22,8 @@ func NewUdpChannel() *UdpChannel {
 	}
 }
 
-func (udp *UdpChannel) AsMessageChannel() comm.OpenableChannel[net.Addr] {
-	return comm.AdaptBinaryChannel[net.Addr](udp)
+func (udp *UdpChannel) AsMessageChannel(serializer comm.MessageSerializer) comm.OpenableChannel[net.Addr] {
+	return comm.AdaptBinaryChannel[net.Addr](udp, serializer)
 }
 
 func (udp *UdpChannel) SetPort(port int) *UdpChannel {

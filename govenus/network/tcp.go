@@ -28,8 +28,8 @@ func NewTcpChannel() *TcpChannel {
 	}
 }
 
-func (tcp *TcpChannel) AsMessageChannel() comm.OpenableChannel[net.Addr] {
-	return comm.AdaptBinaryChannel[net.Addr](tcp)
+func (tcp *TcpChannel) AsMessageChannel(serializer comm.MessageSerializer) comm.OpenableChannel[net.Addr] {
+	return comm.AdaptBinaryChannel[net.Addr](tcp, serializer)
 }
 
 func (tcp *TcpChannel) SetPort(port int) *TcpChannel {
