@@ -7,19 +7,18 @@ import (
 )
 
 type funcPromise struct {
-	task     Task
-	done     bool
-	context  RuntimeContext
-	prepared bool
-	mutex    sync.RWMutex
+	task    Task
+	done    bool
+	context RuntimeContext
+	mutex   sync.RWMutex
 }
 
 func createFuncPromise(task Task, context RuntimeContext, prepared bool) *funcPromise {
 	return &funcPromise{
-		task:     task,
-		done:     false,
-		context:  context,
-		prepared: prepared,
+		task:    task,
+		done:    false,
+		context: context,
+		mutex:   sync.RWMutex{},
 	}
 }
 
