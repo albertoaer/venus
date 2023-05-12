@@ -1,0 +1,7 @@
+[package]
+name = "rsvenus"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+concurrent-queue = "2.2.0"

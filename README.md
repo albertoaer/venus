@@ -11,9 +11,11 @@ Venus is a distributed systems group of libraries for multiple languages with a 
 ## Implementations
 
 - `govenus: golang library` Golang venus client
-  - Currently the only implementation
+  - Currently the one with most of the features implemented
 
-- `rustvenus: rust library` **NOT IMPLEMENTED** Planned to be implemented
+- `rsvenus: rust library` Rust venus client
+  - It is still at a very early stage
+
 
 ## Documentation
 
