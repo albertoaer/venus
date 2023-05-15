@@ -7,35 +7,58 @@ import (
 	"github.com/albertoaer/venus/govenus/utils"
 )
 
+type registeredSender struct {
+	distance uint32
+	sender   Sender
+}
+
+func registeredSenderFromEvent(event ChannelEvent) *registeredSender {
+	return &registeredSender{
+		distance: event.Message.Distance,
+		sender:   event.Sender,
+	}
+}
+
+func (rs *registeredSender) tryReplaceWithEvent(event ChannelEvent) {
+	if event.Message.Distance <= rs.distance {
+		rs.distance = event.Message.Distance
+		rs.sender = event.Sender
+	}
+}
+
+func (rs *registeredSender) getSender() Sender {
+	return rs.sender
+}
+
 type baseClient struct {
-	id           ClientId
+	id           string
 	endpoint     bool
-	senders      map[ClientId]Sender // TODO: allow multiple senders to prevent client replacement
+	senders      map[string]*registeredSender
 	sendersMutex sync.RWMutex
 	mailboxes    *utils.ConcurrentArray[Mailbox]
 }
 
-func NewClient(id ClientId) Client {
+func NewClient(id string) Client {
 	fmt.Println("Client created with id: " + id)
 	return &baseClient{
 		id:        id,
 		endpoint:  true,
-		senders:   make(map[ClientId]Sender),
+		senders:   make(map[string]*registeredSender),
 		mailboxes: utils.NewArray[Mailbox](20),
 	}
 }
 
-func NewRouterClient(id ClientId) Client {
+func NewRouterClient(id string) Client {
 	fmt.Println("Router Client created with id: " + id)
 	return &baseClient{
 		id:        id,
 		endpoint:  false,
-		senders:   make(map[ClientId]Sender),
+		senders:   make(map[string]*registeredSender),
 		mailboxes: utils.NewArray[Mailbox](20),
 	}
 }
 
-func (client *baseClient) GetId() ClientId {
+func (client *baseClient) GetId() string {
 	return client.id
 }
 
@@ -53,14 +76,14 @@ func (client *baseClient) spreadMessage(message Message, allowBroadcast bool) {
 			return
 		}
 		if sender, exists := client.senders[*message.Receiver]; exists {
-			sender.Send(message)
+			sender.getSender().Send(message)
 			return
 		}
 	}
 	if allowBroadcast {
 		for id, sender := range client.senders {
 			if id != message.Sender {
-				sender.Send(message)
+				sender.getSender().Send(message)
 			}
 		}
 	}
@@ -76,12 +99,12 @@ func (client *baseClient) Send(message Message) error {
 func (client *baseClient) onEvent(event ChannelEvent) {
 	client.sendersMutex.Lock()
 	defer client.sendersMutex.Unlock()
-	if event.Message.Sender == client.id {
-		return
+	if registered, exists := client.senders[event.Message.Sender]; !exists {
+		client.senders[event.Message.Sender] = registeredSenderFromEvent(event)
+	} else {
+		registered.tryReplaceWithEvent(event)
 	}
-	if _, exists := client.senders[event.Message.Sender]; !exists {
-		client.senders[event.Message.Sender] = event.Sender
-	}
+	event.Message.Distance += 1
 	client.spreadMessage(event.Message, !client.endpoint)
 }
 
@@ -91,6 +114,10 @@ func (client *baseClient) StartChannel(channel MessageChannel) (err error) {
 			emitter := channel.Emitter()
 			for {
 				received := <-emitter
+				if received.Message.Sender == client.id {
+					continue
+				}
+				client.onEvent(received)
 				if err != nil {
 					fmt.Println("Message error: " + err.Error())
 				} else {
@@ -98,7 +125,6 @@ func (client *baseClient) StartChannel(channel MessageChannel) (err error) {
 						mb.Notify(received, client)
 					})
 				}
-				client.onEvent(received)
 			}
 		}()
 	}

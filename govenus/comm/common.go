@@ -1,17 +1,14 @@
 package comm
 
-type ClientId string
-
-type Verb string
-
 type Message struct {
-	Sender    ClientId
-	Receiver  *ClientId // Optional
+	Sender    string
+	Receiver  *string // Optional
 	Timestamp int64
-	Verb      Verb
+	Verb      string
 	Args      []string
 	Options   map[string]string
 	Payload   []byte
+	Distance  uint32
 }
 
 type Sender interface {
@@ -39,7 +36,7 @@ type Mailbox interface {
 }
 
 type Client interface {
-	GetId() ClientId
+	GetId() string
 	Send(Message) error
 	Attach(Mailbox)
 	Detach(Mailbox)

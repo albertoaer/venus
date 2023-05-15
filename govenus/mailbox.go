@@ -16,19 +16,19 @@ type MailTask = EventTask[MailEvent]
 
 type RuntimeMailbox struct {
 	runtime         Runtime
-	responses       map[comm.Verb]MailTask
+	responses       map[string]MailTask
 	defaultResponse MailTask
 }
 
 func Mailboxed(runtime Runtime) *RuntimeMailbox {
 	return &RuntimeMailbox{
 		runtime:         runtime,
-		responses:       make(map[comm.Verb]MailTask),
+		responses:       make(map[string]MailTask),
 		defaultResponse: nil,
 	}
 }
 
-func (rm *RuntimeMailbox) On(verb comm.Verb, task MailTask) {
+func (rm *RuntimeMailbox) On(verb string, task MailTask) {
 	rm.responses[verb] = task
 }
 

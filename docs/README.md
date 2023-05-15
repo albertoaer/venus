@@ -28,7 +28,7 @@ Will manage the **channels** lifecycle and notify the **mailboxes** on any incom
 
 ```go
 func createClient() comm.Client {
-  return comm.NewClient(comm.ClientId(utils.NewUlidIdGenerator().NextId()))
+  return comm.NewClient(utils.NewUlidIdGenerator().NextId())
 }
 ```
 

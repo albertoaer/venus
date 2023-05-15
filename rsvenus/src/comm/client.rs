@@ -2,11 +2,33 @@ use std::{collections::HashMap, sync::{RwLock, Arc, Mutex}, io, thread};
 
 use super::{common::Sender, MessageChannel, ChannelEvent, Message};
 
+struct RegisteredSender {
+  distance: u32,
+  sender: Box<dyn Sender>
+}
+
+impl RegisteredSender {
+  fn from_event<T: Sender>(event: ChannelEvent<T>) -> Self {
+    RegisteredSender { distance: event.0.distance, sender: Box::new(event.1) }
+  }
+
+  fn get_mut(&mut self) -> &mut dyn Sender {
+    self.sender.as_mut()
+  }
+
+  fn try_replace_with_event<T: Sender>(&mut self, event: ChannelEvent<T>) {
+    if event.0.distance <= self.distance {
+      self.distance = event.0.distance;
+      self.sender = Box::new(event.1);
+    }
+  }
+}
+
 #[derive(Clone)]
 pub struct Client {
   id: String,
   endpoint: bool,
-  senders: Arc<RwLock<HashMap<String, Box<dyn Sender>>>>,
+  senders: Arc<RwLock<HashMap<String, RegisteredSender>>>,
   mailboxes: Arc<Mutex<Vec<Box<dyn Mailbox>>>>
 }
 
@@ -44,13 +66,13 @@ impl Client {
         return Ok(())
       }
       if let Some(sender) = senders.get_mut(receiver) {
-        return sender.send(message).map(|_| ())
+        return sender.get_mut().send(message).map(|_| ())
       }
     }
     if allow_broadcast {
       for (id, sender) in senders.iter_mut() {
         if *id != message.sender {
-          sender.send(message.clone())?;
+          sender.get_mut().send(message.clone())?;
         }
       }
     }
@@ -61,13 +83,16 @@ impl Client {
     self.spread_message(message, true)
   }
 
-  fn on_event(&mut self, message: Message, sender: Box<dyn Sender>) {
+  fn on_event<T: Sender>(&mut self, event: ChannelEvent<T>) {
+    let mut message = event.0.clone();
     {
       let mut senders = self.senders.write().unwrap();
-      if !senders.contains_key(&message.sender) {
-        senders.insert(message.sender.clone(), sender);
+      match senders.get_mut(&event.0.sender) {
+        Some(sender) => sender.try_replace_with_event(event),
+        None => drop(senders.insert(event.0.sender.clone(), RegisteredSender::from_event(event))),
       }
     }
+    message.distance += 1;
     self.spread_message(message, !self.endpoint).ok();
   }
 
@@ -80,10 +105,11 @@ impl Client {
         if event.0.sender == client.id {
           continue;
         }
-        client.on_event(event.0.clone(), Box::new(event.1));
-        if let Some(sender) = client.senders.write().unwrap().get_mut(&event.0.sender) {
+        let message = event.0.clone();
+        client.on_event(event);
+        if let Some(sender) = client.senders.write().unwrap().get_mut(&message.sender) {
           for mailbox in mailboxes.lock().unwrap().iter_mut() {
-            mailbox.notify((event.0.clone(), sender.as_mut()), client.clone())
+            mailbox.notify((message.clone(), sender.get_mut()), client.clone())
           }
         }
       }

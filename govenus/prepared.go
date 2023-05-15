@@ -21,7 +21,7 @@ func SayHi[K any](client comm.Client, address K, channel comm.OpenableChannel[K]
 
 func SetupTcpClient(port int, serializer comm.MessageSerializer) (comm.Client, comm.OpenableChannel[net.Addr]) {
 	tcpChannel := network.NewTcpChannel().SetPort(port).AsMessageChannel(serializer)
-	client := comm.NewClient(comm.ClientId(utils.NewUlidIdGenerator().NextId()))
+	client := comm.NewClient(utils.NewUlidIdGenerator().NextId())
 	if err := client.StartChannel(tcpChannel); err != nil {
 		panic(err)
 	}

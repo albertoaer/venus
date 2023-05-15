@@ -7,13 +7,14 @@ import (
 )
 
 type jsonMessage struct {
-	Sender_    ClientId          `json:"sender"`
-	Receiver_  *ClientId         `json:"receiver,omitempty"`
+	Sender_    string            `json:"sender"`
+	Receiver_  *string           `json:"receiver,omitempty"`
 	Timestamp_ int64             `json:"timestamp"`
-	Verb_      Verb              `json:"verb"`
+	Verb_      string            `json:"verb"`
 	Args_      []string          `json:"args,omitempty"`
 	Options_   map[string]string `json:"options,omitempty"`
 	Payload_   []byte            `json:"payload,omitempty"`
+	Distance_  uint32            `json:"distance"`
 }
 
 func (jm jsonMessage) Args() []string {
@@ -28,11 +29,11 @@ func (jm jsonMessage) Payload() []byte {
 	return jm.Payload_
 }
 
-func (jm jsonMessage) Receiver() *ClientId {
+func (jm jsonMessage) Receiver() *string {
 	return jm.Receiver_
 }
 
-func (jm jsonMessage) Sender() ClientId {
+func (jm jsonMessage) Sender() string {
 	return jm.Sender_
 }
 
@@ -40,7 +41,7 @@ func (jm jsonMessage) Timestamp() int64 {
 	return jm.Timestamp_
 }
 
-func (jm jsonMessage) Verb() Verb {
+func (jm jsonMessage) Verb() string {
 	return jm.Verb_
 }
 
@@ -71,6 +72,7 @@ func (*jsonSerializer) Deserialize(packet []byte) (msg Message, err error) {
 		Args:      message.Args_,
 		Options:   message.Options_,
 		Payload:   message.Payload_,
+		Distance:  message.Distance_,
 	}
 	return
 }
@@ -84,6 +86,7 @@ func (*jsonSerializer) Serialize(msg Message) ([]byte, error) {
 		Args_:      msg.Args,
 		Options_:   msg.Options,
 		Payload_:   msg.Payload,
+		Distance_:  msg.Distance,
 	}
 	return json.Marshal(message)
 }

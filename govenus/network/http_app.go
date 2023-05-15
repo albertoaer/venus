@@ -27,9 +27,9 @@ func NewHttpAppChannel() *HttpChannel {
 }
 
 func (handler *httpAppHandler) prepareMessage(request *http.Request) (msg comm.Message, err error) {
-	msg.Sender = comm.ClientId(handler.idGenerator.NextId())
+	msg.Sender = handler.idGenerator.NextId()
 	msg.Timestamp = time.Now().Unix()
-	msg.Verb = comm.Verb(request.Method)
+	msg.Verb = request.Method
 	msg.Args = []string{request.RequestURI}
 	msg.Payload, err = io.ReadAll(request.Body)
 	if err != nil {

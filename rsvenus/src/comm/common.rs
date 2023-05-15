@@ -12,7 +12,8 @@ pub struct Message {
   #[serde(default)]
   pub options: HashMap<String, String>,
   #[serde(default)]
-  pub payload: Vec<u8>
+  pub payload: Vec<u8>,
+  pub distance: u32,
 }
 
 pub trait Sender: Send + Sync + 'static {
