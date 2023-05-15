@@ -1,4 +1,4 @@
-use std::{ops::Deref};
+use std::{ops::Deref, sync::{Mutex, Arc}};
 
 use crate::{runtime::RuntimeContext, Task};
 
@@ -21,25 +21,21 @@ impl<'a, T> Deref for EventContext<'a, T> {
   }
 }
 
-pub type EventTask<T> = dyn FnMut(EventContext<T>) -> bool;
+pub type EventTask<T> = dyn FnMut(EventContext<T>) -> bool + Send + 'static;
 
+#[derive(Clone)]
 pub struct EventBuilder<T> {
-  task: Option<Box<EventTask<T>>>,
+  task: Option<Arc<Mutex<Box<EventTask<T>>>>>,
   event: Option<T>
 }
 
-impl<T: 'static> EventBuilder<T> {
-  pub fn new(task: impl FnMut(EventContext<T>) -> bool + 'static) -> Self {
-    EventBuilder { task: Some(Box::new(task)), event: None }
+impl<T: Send + 'static> EventBuilder<T> {
+  pub fn new(task: impl Send + 'static + FnMut(EventContext<T>) -> bool) -> Self {
+    EventBuilder { task: Some(Arc::new(Mutex::new(Box::new(task)))), event: None }
   }
 
-  pub fn task(mut self, task: impl FnMut(EventContext<T>) -> bool + 'static) -> Self {
-    self.task = Some(Box::new(task));
-    self
-  }
-
-  pub fn boxed_task(mut self, task: Box<EventTask<T>>) -> Self {
-    self.task = Some(task);
+  pub fn task(mut self, task: impl Send + 'static + FnMut(EventContext<T>) -> bool) -> Self {
+    self.task = Some(Arc::new(Mutex::new(Box::new(task))));
     self
   }
 
@@ -48,9 +44,9 @@ impl<T: 'static> EventBuilder<T> {
     self
   }
 
-  pub fn build(self) -> Box<Task> {
-    let mut task = self.task.unwrap();
+  pub fn build(self) -> Task {
+    let task = self.task.unwrap();
     let event = self.event.unwrap();
-    Box::new(move |context| task(EventContext { context, event: &event }))
+    Arc::new(Mutex::new(Box::new(move |context| task.lock().unwrap()(EventContext { context, event: &event }))))
   }
 }
