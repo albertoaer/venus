@@ -2,23 +2,15 @@ use std::sync::{RwLock, Arc};
 
 use concurrent_queue::ConcurrentQueue;
 
-use crate::{runtime::{Promise, Runtime}, RuntimePlan};
+use crate::{runtime::Promise, RuntimePlan, Runtime};
 
-pub struct SingleThreadRuntime;
-
-impl SingleThreadRuntime {
-  pub fn new() -> Runtime {
-    Runtime::new(SingleThreadRuntimePlan::new())
-  }
-}
-
-struct SingleThreadRuntimePlan {
+pub struct SingleThreadRuntimePlan {
   queue: ConcurrentQueue<Promise>,
   on: Arc<RwLock<bool>>,
 }
 
 impl SingleThreadRuntimePlan {
-  fn new() -> Self {
+  pub fn new() -> Self {
     return Self {
       queue: ConcurrentQueue::unbounded(),
       on: Arc::new(RwLock::new(false))
@@ -49,5 +41,11 @@ impl RuntimePlan for SingleThreadRuntimePlan {
 
   fn stop(&self) {
     *self.on.write().unwrap() = false;
+  }
+}
+
+impl Into<Runtime> for SingleThreadRuntimePlan {
+  fn into(self) -> Runtime {
+    Runtime::new(self)
   }
 }

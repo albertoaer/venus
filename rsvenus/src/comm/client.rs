@@ -42,7 +42,7 @@ impl Client {
     }
   }
 
-  pub fn new_router(id: impl AsRef<String>) -> Self {
+  pub fn new_router(id: impl AsRef<str>) -> Self {
     Client {
       id: id.as_ref().into(),
       endpoint: false,
@@ -107,10 +107,8 @@ impl Client {
         }
         let message = event.0.clone();
         client.on_event(event);
-        if let Some(sender) = client.senders.write().unwrap().get_mut(&message.sender) {
-          for mailbox in mailboxes.lock().unwrap().iter_mut() {
-            mailbox.notify((message.clone(), sender.get_mut()), client.clone())
-          }
+        for mailbox in mailboxes.lock().unwrap().iter_mut() {
+          mailbox.notify(message.clone(), client.clone())
         }
       }
     });
@@ -119,5 +117,5 @@ impl Client {
 }
 
 pub trait Mailbox: Send + Sync {
-  fn notify(&mut self, event: ChannelEvent<&mut dyn Sender>, client: Client);
+  fn notify(&mut self, message: Message, client: Client);
 }

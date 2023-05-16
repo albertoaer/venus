@@ -32,7 +32,7 @@ type MessageSerializer interface {
 }
 
 type Mailbox interface {
-	Notify(ChannelEvent, Client)
+	Notify(Message, Client)
 }
 
 type Client interface {

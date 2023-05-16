@@ -16,6 +16,6 @@ func NewCustomSniffer(action func(Message)) Mailbox {
 	return &sniffer{action: action}
 }
 
-func (sniffer *sniffer) Notify(event ChannelEvent, _ Client) {
-	sniffer.action(event.Message)
+func (sniffer *sniffer) Notify(message Message, _ Client) {
+	sniffer.action(message)
 }

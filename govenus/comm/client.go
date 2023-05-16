@@ -118,13 +118,9 @@ func (client *baseClient) StartChannel(channel MessageChannel) (err error) {
 					continue
 				}
 				client.onEvent(received)
-				if err != nil {
-					fmt.Println("Message error: " + err.Error())
-				} else {
-					client.mailboxes.ForEach(func(_ int, mb Mailbox) {
-						mb.Notify(received, client)
-					})
-				}
+				client.mailboxes.ForEach(func(_ int, mb Mailbox) {
+					mb.Notify(received.Message, client)
+				})
 			}
 		}()
 	}

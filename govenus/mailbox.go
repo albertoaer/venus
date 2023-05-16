@@ -7,7 +7,6 @@ import (
 type MailEvent struct {
 	Message comm.Message
 	Client  comm.Client
-	Sender  comm.Sender
 }
 
 type MailContext = EventContext[MailEvent]
@@ -36,18 +35,17 @@ func (rm *RuntimeMailbox) OnDefault(task MailTask) {
 	rm.defaultResponse = task
 }
 
-func (rm *RuntimeMailbox) Notify(event comm.ChannelEvent, client comm.Client) {
-	if event.Message.Receiver != nil && *event.Message.Receiver != client.GetId() {
+func (rm *RuntimeMailbox) Notify(message comm.Message, client comm.Client) {
+	if message.Receiver != nil && *message.Receiver != client.GetId() {
 		return
 	}
 	context := rm.runtime.NewContext()
 	taskBuilder := NewEventTaskBuilder[MailEvent]()
 	taskBuilder.SetEvent(MailEvent{
-		Message: event.Message,
+		Message: message,
 		Client:  client,
-		Sender:  event.Sender,
 	})
-	if task, exists := rm.responses[event.Message.Verb]; exists {
+	if task, exists := rm.responses[message.Verb]; exists {
 		taskBuilder.SetTask(EventTask[MailEvent](task))
 	} else if rm.defaultResponse != nil {
 		taskBuilder.SetTask(EventTask[MailEvent](rm.defaultResponse))
