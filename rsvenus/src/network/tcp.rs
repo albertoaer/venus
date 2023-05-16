@@ -19,7 +19,7 @@ impl<M : MessageSerializer> TcpSender<M> {
 }
 
 impl<M : MessageSerializer> Sender for TcpSender<M> {
-  fn send(&mut self, message: Message) -> io::Result<bool> {
+  fn send(&mut self, message: &Message) -> io::Result<bool> {
     let mut socket = self.0.lock().unwrap();
     let bin = M::serialize(message).map_err(|err| io::Error::new(io::ErrorKind::Other, err))?;
     socket.write(&(bin.len() as u64).to_le_bytes())?;

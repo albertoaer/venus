@@ -8,18 +8,18 @@ struct RegisteredSender {
 }
 
 impl RegisteredSender {
-  fn from_event<T: Sender>(event: ChannelEvent<T>) -> Self {
-    RegisteredSender { distance: event.0.distance, sender: Box::new(event.1) }
+  fn new<T: Sender>(message: &Message, sender: T) -> Self {
+    RegisteredSender { distance: message.distance, sender: Box::new(sender) }
   }
 
   fn get_mut(&mut self) -> &mut dyn Sender {
     self.sender.as_mut()
   }
 
-  fn try_replace_with_event<T: Sender>(&mut self, event: ChannelEvent<T>) {
-    if event.0.distance <= self.distance {
-      self.distance = event.0.distance;
-      self.sender = Box::new(event.1);
+  fn try_replace<T: Sender>(&mut self, message: &Message, sender: T) {
+    if message.distance <= self.distance {
+      self.distance = message.distance;
+      self.sender = Box::new(sender);
     }
   }
 }
@@ -59,7 +59,7 @@ impl Client {
     self.mailboxes.lock().unwrap().push(Box::new(mailbox));
   }
 
-  fn spread_message(&mut self, message: Message, allow_broadcast: bool) -> io::Result<()> {
+  fn spread_message(&mut self, message: &Message, allow_broadcast: bool) -> io::Result<()> {
     let mut senders = self.senders.write().unwrap();
     if let Some(receiver) = &message.receiver {
       if *receiver == self.id {
@@ -72,28 +72,28 @@ impl Client {
     if allow_broadcast {
       for (id, sender) in senders.iter_mut() {
         if *id != message.sender {
-          sender.get_mut().send(message.clone())?;
+          sender.get_mut().send(message)?;
         }
       }
     }
     Ok(())
   }
 
-  pub fn send(&mut self, message: Message) -> io::Result<()> {
+  pub fn send(&mut self, message: &Message) -> io::Result<()> {
     self.spread_message(message, true)
   }
 
   fn on_event<T: Sender>(&mut self, event: ChannelEvent<T>) {
-    let mut message = event.0.clone();
+    let (mut message, new_sender) = event;
     {
       let mut senders = self.senders.write().unwrap();
-      match senders.get_mut(&event.0.sender) {
-        Some(sender) => sender.try_replace_with_event(event),
-        None => drop(senders.insert(event.0.sender.clone(), RegisteredSender::from_event(event))),
+      match senders.get_mut(&message.sender) {
+        Some(sender) => sender.try_replace(&message, new_sender),
+        None => drop(senders.insert(message.sender.clone(), RegisteredSender::new(&message, new_sender))),
       }
     }
     message.distance += 1;
-    self.spread_message(message, !self.endpoint).ok();
+    self.spread_message(&message, !self.endpoint).ok();
   }
 
   pub fn start_channel<T: Sender>(&mut self, mut channel: impl MessageChannel<T>) -> io::Result<()> {

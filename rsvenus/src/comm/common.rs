@@ -17,12 +17,12 @@ pub struct Message {
 }
 
 pub trait Sender: Send + Sync + 'static {
-  fn send(&mut self, message: Message) -> io::Result<bool>;
+  fn send(&mut self, message: &Message) -> io::Result<bool>;
 }
 
 pub trait MessageSerializer: Clone + Copy + Send + Sync + 'static {
   fn deserialize(data: Vec<u8>) -> Result<Message, String>;
-  fn serialize(message: Message) -> Result<Vec<u8>, String>;
+  fn serialize(message: &Message) -> Result<Vec<u8>, String>;
 }
 
 pub type ChannelEvent<T> = (Message, T);
